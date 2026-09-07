@@ -1,4 +1,9 @@
-export type ActiveView = 'hub' | 'game_hangman';
+export type ActiveView =
+  | 'hub'
+  | 'game_hangman'
+  | 'game_connect4'
+  | 'game_memory'
+  | 'game_tictactoe';
 
 export type GameStage = 'setup' | 'playing' | 'gameover';
 
@@ -22,5 +27,4 @@ export interface DualHangmanState {
   winner: 'player1' | 'player2' | 'tie' | null;
   player1Name: string;
   player2Name: string;
-  isAiTurnProcessing?: boolean;
 }
