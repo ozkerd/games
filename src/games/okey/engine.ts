@@ -383,3 +383,184 @@ export function getBotAction(
     return { action: 'discard', tileSlot: worstSlot };
   }
 }
+
+export interface HandAnalysis {
+  validMelds: Tile[][];
+  highlightedTileIds: Set<string>;
+  totalMeldTiles: number;
+  meldPoints: number;
+  pairsCount: number;
+  isClassicWin: boolean;
+  canOpen101: boolean;
+  discardCandidate: Tile | null;
+}
+
+/**
+ * Rigorous hand evaluation algorithm:
+ * Detects all valid non-overlapping runs, groups, and pairs.
+ * Calculates points for 101 and checks for Classic Okey winning condition.
+ */
+export function evaluateHand(
+  tiles: (Tile | null)[],
+  okeyTile: { color: TileColor; number: number },
+  variant: OkeyVariant
+): HandAnalysis {
+  const activeTiles = tiles.filter((t): t is Tile => t !== null);
+  if (activeTiles.length === 0) {
+    return {
+      validMelds: [],
+      highlightedTileIds: new Set<string>(),
+      totalMeldTiles: 0,
+      meldPoints: 0,
+      pairsCount: 0,
+      isClassicWin: false,
+      canOpen101: false,
+      discardCandidate: null,
+    };
+  }
+
+  // 1. Find all candidate valid runs (same color sequences >= 3)
+  const candidateRuns: Tile[][] = [];
+  const colorGroups: Record<TileColor, Tile[]> = { red: [], yellow: [], blue: [], black: [], fake: [] };
+
+  activeTiles.forEach((t) => {
+    const effectiveColor = t.isFakeOkey ? okeyTile.color : t.color;
+    if (colorGroups[effectiveColor]) {
+      colorGroups[effectiveColor].push(t);
+    }
+  });
+
+  // Find consecutive runs within each color
+  Object.values(colorGroups).forEach((cTiles) => {
+    if (cTiles.length < 3) return;
+    const sorted = [...cTiles].sort((a, b) => {
+      const numA = a.isFakeOkey ? okeyTile.number : a.number;
+      const numB = b.isFakeOkey ? okeyTile.number : b.number;
+      return numA - numB;
+    });
+
+    // Subsequence check for 3, 4, 5 consecutive tiles
+    for (let len = 3; len <= Math.min(sorted.length, 6); len++) {
+      for (let i = 0; i <= sorted.length - len; i++) {
+        const sub = sorted.slice(i, i + len);
+        if (isValidRun(sub, okeyTile)) {
+          candidateRuns.push(sub);
+        }
+      }
+    }
+  });
+
+  // 2. Find all candidate valid groups (same number diff color >= 3)
+  const candidateGroups: Tile[][] = [];
+  const numberGroups: Record<number, Tile[]> = {};
+
+  activeTiles.forEach((t) => {
+    const effectiveNumber = t.isFakeOkey ? okeyTile.number : t.number;
+    if (!numberGroups[effectiveNumber]) numberGroups[effectiveNumber] = [];
+    numberGroups[effectiveNumber].push(t);
+  });
+
+  Object.values(numberGroups).forEach((nTiles) => {
+    if (nTiles.length < 3) return;
+    // Check if distinct colors
+    const uniqueByColor: Tile[] = [];
+    const seenColors = new Set<TileColor>();
+
+    nTiles.forEach((t) => {
+      const col = t.isFakeOkey ? okeyTile.color : t.color;
+      if (!seenColors.has(col)) {
+        seenColors.add(col);
+        uniqueByColor.push(t);
+      }
+    });
+
+    if (uniqueByColor.length >= 3) {
+      if (isValidGroup(uniqueByColor.slice(0, 3), okeyTile)) {
+        candidateGroups.push(uniqueByColor.slice(0, 3));
+      }
+      if (uniqueByColor.length === 4 && isValidGroup(uniqueByColor, okeyTile)) {
+        candidateGroups.push(uniqueByColor);
+      }
+    }
+  });
+
+  // 3. Find all candidate pairs
+  const candidatePairs: Tile[][] = [];
+  const usedPairIds = new Set<string>();
+
+  for (let i = 0; i < activeTiles.length; i++) {
+    if (usedPairIds.has(activeTiles[i].id)) continue;
+    for (let j = i + 1; j < activeTiles.length; j++) {
+      if (usedPairIds.has(activeTiles[j].id)) continue;
+      const t1 = activeTiles[i];
+      const t2 = activeTiles[j];
+
+      const isSame =
+        (t1.isFakeOkey && t2.isFakeOkey) ||
+        (!t1.isFakeOkey && !t2.isFakeOkey && t1.color === t2.color && t1.number === t2.number);
+
+      if (isSame) {
+        candidatePairs.push([t1, t2]);
+        usedPairIds.add(t1.id);
+        usedPairIds.add(t2.id);
+        break;
+      }
+    }
+  }
+
+  // 4. Greedy selection of maximum non-overlapping melds
+  const allCandidates = [...candidateRuns, ...candidateGroups].sort((a, b) => {
+    // For 101, prioritize higher point melds; for Classic, prioritize larger melds
+    if (variant === '101') {
+      return calculateMeldPoints(b, okeyTile) - calculateMeldPoints(a, okeyTile);
+    }
+    return b.length - a.length;
+  });
+
+  const selectedMelds: Tile[][] = [];
+  const usedTileIds = new Set<string>();
+
+  allCandidates.forEach((meld) => {
+    const isDisjoint = meld.every((t) => !usedTileIds.has(t.id));
+    if (isDisjoint) {
+      selectedMelds.push(meld);
+      meld.forEach((t) => usedTileIds.add(t.id));
+    }
+  });
+
+  // Calculate points
+  const totalMeldPoints = selectedMelds.reduce(
+    (sum, meld) => sum + calculateMeldPoints(meld, okeyTile),
+    0
+  );
+
+  const totalMeldTiles = Array.from(usedTileIds).length;
+  const pairsCount = candidatePairs.length;
+
+  // Classic Win criteria:
+  // Must have at least 14 tiles in valid melds (or 7 pairs = 14 tiles)
+  // and exactly 1 tile left over (the 15th tile to discard into center)
+  const isClassicWin =
+    (totalMeldTiles >= 14 || pairsCount >= 7) &&
+    activeTiles.length >= 14;
+
+  // 101 Open criteria:
+  // Must have at least 101 points from valid melds OR at least 5 pairs
+  const canOpen101 = variant === '101' && (totalMeldPoints >= 101 || pairsCount >= 5);
+
+  // Find least useful tile as discard candidate (tile not in any meld)
+  const leftoverTiles = activeTiles.filter((t) => !usedTileIds.has(t.id));
+  const discardCandidate = leftoverTiles.length > 0 ? leftoverTiles[leftoverTiles.length - 1] : activeTiles[activeTiles.length - 1];
+
+  return {
+    validMelds: selectedMelds,
+    highlightedTileIds: usedTileIds,
+    totalMeldTiles,
+    meldPoints: totalMeldPoints,
+    pairsCount,
+    isClassicWin,
+    canOpen101,
+    discardCandidate,
+  };
+}
+

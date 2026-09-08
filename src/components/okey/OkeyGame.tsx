@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import { OkeyGameState, OkeyVariant, OkeyPlayerCount, OkeyMode, Tile } from '../../games/okey/types';
-import { initializeGame, autoSortSeries, autoSortPairs, getBotAction, isRealOkey, calculateMeldPoints } from '../../games/okey/engine';
+import { initializeGame, autoSortSeries, autoSortPairs, getBotAction, isRealOkey, calculateMeldPoints, evaluateHand } from '../../games/okey/engine';
 import { OkeyP2PManager } from '../../games/okey/p2p';
 import { OkeyTable } from './OkeyTable';
 import { OkeyRack } from './OkeyRack';
-import { Users, Bot, Globe, Copy, Check, Trophy, RotateCcw, LayoutGrid, Play, ArrowLeft } from 'lucide-react';
+import { Users, Bot, Globe, Copy, Check, Trophy, RotateCcw, LayoutGrid, Play, ArrowLeft, Sparkles } from 'lucide-react';
 
 interface OkeyGameProps {
   initialRoomCode?: string;
@@ -23,8 +23,19 @@ export const OkeyGame: React.FC<OkeyGameProps> = ({ initialRoomCode, onBackToHub
   const [copiedLink, setCopiedLink] = useState(false);
   const [onlineConnectedCount, setOnlineConnectedCount] = useState(1);
   const [myPlayerIndex, setMyPlayerIndex] = useState(0);
+  const [dismissedClassicFinish, setDismissedClassicFinish] = useState(false);
 
   const p2pRef = useRef<OkeyP2PManager | null>(null);
+
+  // Live hand evaluation for the current user
+  const handAnalysis = useMemo(() => {
+    if (!gameState || !gameState.players[myPlayerIndex]) return null;
+    return evaluateHand(
+      gameState.players[myPlayerIndex].tiles,
+      gameState.okeyTile,
+      gameState.variant
+    );
+  }, [gameState, myPlayerIndex]);
 
   // Auto-connect if initialRoomCode passed via URL query
   useEffect(() => {
@@ -159,6 +170,7 @@ export const OkeyGame: React.FC<OkeyGameProps> = ({ initialRoomCode, onBackToHub
     if (!gameState || gameState.currentTurn !== myPlayerIndex || gameState.turnPhase !== 'draw') return;
     if (gameState.deck.length === 0) return;
 
+    setDismissedClassicFinish(false);
     const newDeck = [...gameState.deck];
     const drawnTile = newDeck.pop()!;
 
@@ -189,6 +201,7 @@ export const OkeyGame: React.FC<OkeyGameProps> = ({ initialRoomCode, onBackToHub
   const handleDrawDiscard = () => {
     if (!gameState || gameState.currentTurn !== myPlayerIndex || gameState.turnPhase !== 'draw') return;
 
+    setDismissedClassicFinish(false);
     const prevPlayerIdx = (myPlayerIndex - 1 + gameState.playerCount) % gameState.playerCount;
     const prevPile = [...(gameState.discardPiles[prevPlayerIdx] || [])];
     if (prevPile.length === 0) return;
@@ -286,6 +299,11 @@ export const OkeyGame: React.FC<OkeyGameProps> = ({ initialRoomCode, onBackToHub
   // Finish Hand (Bitti / Okey At)
   const handleFinishHand = (slotIdx: number) => {
     if (!gameState) return;
+    if (gameState.variant === 'classic' && !handAnalysis?.isClassicWin) {
+      alert('Eliniz henüz geçerli bir şekilde bitmedi! 14 taşınızı kurallara uygun perlere veya 7 çifte bölmelisiniz.');
+      return;
+    }
+
     const player = gameState.players[myPlayerIndex];
     const discardedTile = player.tiles[slotIdx];
     const isOkey = discardedTile ? isRealOkey(discardedTile, gameState.okeyTile) : false;
@@ -638,13 +656,88 @@ export const OkeyGame: React.FC<OkeyGameProps> = ({ initialRoomCode, onBackToHub
             onDrawDiscard={handleDrawDiscard}
           />
 
+          {/* CLASSIC OKEY FINISH PROMPT BANNER */}
+          {gameState.variant === 'classic' &&
+            handAnalysis?.isClassicWin &&
+            gameState.currentTurn === myPlayerIndex &&
+            gameState.turnPhase === 'discard' &&
+            !dismissedClassicFinish && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-600 via-amber-500 to-rose-600 text-white shadow-2xl flex flex-wrap items-center justify-between gap-4 border-2 border-amber-300 animate-bounce">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-950/40 border border-white/20 flex items-center justify-center text-amber-200">
+                    <Trophy className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-display font-extrabold text-base sm:text-lg">
+                      Tebrikler! Eliniz Bitti! 🎯
+                    </h4>
+                    <p className="text-xs text-amber-100">
+                      14 taşınız geçerli perlere ayrıldı. Hemen bitirebilir veya Okey atmak için devam edebilirsiniz!
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const discardSlot = gameState.players[myPlayerIndex].tiles.findIndex(
+                        (t) => t && handAnalysis.discardCandidate && t.id === handAnalysis.discardCandidate.id
+                      );
+                      handleFinishHand(discardSlot !== -1 ? discardSlot : 0);
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-amber-300 font-extrabold text-xs sm:text-sm shadow-xl transition-all active:scale-95"
+                  >
+                    🏆 Eli Bitir (Kazan)
+                  </button>
+                  <button
+                    onClick={() => setDismissedClassicFinish(true)}
+                    className="px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs transition-all"
+                  >
+                    🔄 Okey'e Dön (Devam Et)
+                  </button>
+                </div>
+              </div>
+            )}
+
+          {/* 101 OKEY OPEN HAND PROMPT BANNER */}
+          {gameState.variant === '101' &&
+            handAnalysis?.canOpen101 &&
+            !gameState.players[myPlayerIndex].hasOpened &&
+            gameState.currentTurn === myPlayerIndex && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-2xl flex flex-wrap items-center justify-between gap-4 border-2 border-emerald-300">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-950/40 border border-white/20 flex items-center justify-center text-emerald-200">
+                    <Sparkles className="w-6 h-6 animate-spin" />
+                  </div>
+                  <div>
+                    <h4 className="font-display font-extrabold text-base sm:text-lg">
+                      101 Puan Barajına Ulaştınız! 🌟
+                    </h4>
+                    <p className="text-xs text-emerald-100">
+                      Vurgulanan perlerinizin toplamı <strong>{handAnalysis.meldPoints} Puan</strong> (veya {handAnalysis.pairsCount} Çift). Elinizi masaya açabilirsiniz!
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleOpen101}
+                  className="px-5 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-emerald-300 font-extrabold text-xs sm:text-sm shadow-xl transition-all active:scale-95"
+                >
+                  ✨ Elimi Masaya Aç ({handAnalysis.meldPoints} Puan)
+                </button>
+              </div>
+            )}
+
           {/* REALISTIC WOODEN ISTAKA (CUE RACK) */}
           <OkeyRack
             tiles={gameState.players[myPlayerIndex].tiles}
             okeyTile={gameState.okeyTile}
+            variant={gameState.variant}
             isMyTurn={gameState.currentTurn === myPlayerIndex}
             canDiscard={gameState.currentTurn === myPlayerIndex && gameState.turnPhase === 'discard'}
-            canOpen101={gameState.variant === '101' && !gameState.players[myPlayerIndex].hasOpened}
+            canOpen101={gameState.variant === '101' && !gameState.players[myPlayerIndex].hasOpened && (handAnalysis?.canOpen101 || false)}
+            highlightedTileIds={handAnalysis?.highlightedTileIds}
+            handAnalysis={handAnalysis || undefined}
             onMoveTile={handleMoveTile}
             onDiscardTile={handleDiscardTile}
             onSortSeries={handleSortSeries}

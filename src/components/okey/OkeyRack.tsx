@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { Tile, TileColor } from '../../games/okey/types';
+import { Tile, TileColor, OkeyVariant } from '../../games/okey/types';
 import { OkeyTile } from './OkeyTile';
-import { isRealOkey } from '../../games/okey/engine';
-import { ArrowUpDown, Layers, ArrowDownCircle, CheckCircle2 } from 'lucide-react';
+import { isRealOkey, HandAnalysis } from '../../games/okey/engine';
+import { ArrowUpDown, Layers, ArrowDownCircle, CheckCircle2, Sparkles, Trophy } from 'lucide-react';
 
 interface OkeyRackProps {
   tiles: (Tile | null)[];
   okeyTile: { color: TileColor; number: number };
+  variant: OkeyVariant;
   isMyTurn: boolean;
   canDiscard: boolean;
   canOpen101?: boolean;
+  highlightedTileIds?: Set<string>;
+  handAnalysis?: HandAnalysis;
   onMoveTile: (fromIndex: number, toIndex: number) => void;
   onDiscardTile: (slotIndex: number) => void;
   onSortSeries: () => void;
@@ -21,9 +24,12 @@ interface OkeyRackProps {
 export const OkeyRack: React.FC<OkeyRackProps> = ({
   tiles,
   okeyTile,
+  variant,
   isMyTurn,
   canDiscard,
   canOpen101 = false,
+  highlightedTileIds = new Set(),
+  handAnalysis,
   onMoveTile,
   onDiscardTile,
   onSortSeries,
@@ -64,9 +70,59 @@ export const OkeyRack: React.FC<OkeyRackProps> = ({
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto select-none">
+    <div className="w-full max-w-5xl mx-auto select-none space-y-2">
+      {/* Live Hand Evaluation Banner */}
+      {handAnalysis && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md text-xs">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            {variant === '101' ? (
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 font-medium">Açılabilir Per Puanı:</span>
+                <span className={`font-mono font-bold px-2 py-0.5 rounded-md ${
+                  handAnalysis.canOpen101
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : 'bg-slate-800 text-amber-300'
+                }`}>
+                  {handAnalysis.meldPoints} / 101 Puan
+                </span>
+                <span className="text-slate-500">|</span>
+                <span className="text-slate-400">Çift: <strong className="text-white">{handAnalysis.pairsCount}/5</strong></span>
+                {handAnalysis.canOpen101 && (
+                  <span className="text-emerald-400 font-bold animate-pulse ml-1">
+                    ✓ 101 Barajı Tamam!
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 font-medium">Per Durumu:</span>
+                <span className={`font-mono font-bold px-2 py-0.5 rounded-md ${
+                  handAnalysis.isClassicWin
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : 'bg-slate-800 text-amber-300'
+                }`}>
+                  {handAnalysis.totalMeldTiles} / 14 Taş
+                </span>
+                <span className="text-slate-500">|</span>
+                <span className="text-slate-400">Çift: <strong className="text-white">{handAnalysis.pairsCount}/7</strong></span>
+                {handAnalysis.isClassicWin && (
+                  <span className="text-emerald-400 font-bold flex items-center gap-1 animate-pulse ml-1">
+                    <Trophy className="w-3.5 h-3.5" /> Eliniz Bitti!
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <span className="text-[11px] text-emerald-400/90 hidden sm:inline">
+            ✓ Yeşil çerçeveli taşlar geçerli per oluşturuyor
+          </span>
+        </div>
+      )}
+
       {/* Top Action Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-2 px-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-2">
         <div className="flex items-center gap-2">
           <button
             onClick={onSortSeries}
@@ -111,13 +167,14 @@ export const OkeyRack: React.FC<OkeyRackProps> = ({
                 Seçili Taşı At
               </button>
 
-              {onFinishHand && (
+              {/* Only show Finish button if hand is genuinely complete */}
+              {onFinishHand && handAnalysis?.isClassicWin && (
                 <button
                   onClick={() => {
                     onFinishHand(selectedIndex);
                     setSelectedIndex(null);
                   }}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-600 text-white text-xs font-extrabold shadow-lg shadow-amber-500/30 hover:brightness-110 transition-all active:scale-95"
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-600 text-white text-xs font-extrabold shadow-lg shadow-amber-500/30 hover:brightness-110 transition-all active:scale-95 animate-bounce"
                 >
                   🏆 Bitti / Okey At!
                 </button>
@@ -156,6 +213,7 @@ export const OkeyRack: React.FC<OkeyRackProps> = ({
                   tile={tile}
                   isOkey={tile ? isRealOkey(tile, okeyTile) : false}
                   isSelected={selectedIndex === slotIdx}
+                  isHighlighted={tile ? highlightedTileIds.has(tile.id) : false}
                   size="md"
                   onClick={() => handleSlotClick(slotIdx)}
                   draggable={!!tile}
@@ -180,6 +238,7 @@ export const OkeyRack: React.FC<OkeyRackProps> = ({
                   tile={tile}
                   isOkey={tile ? isRealOkey(tile, okeyTile) : false}
                   isSelected={selectedIndex === slotIdx}
+                  isHighlighted={tile ? highlightedTileIds.has(tile.id) : false}
                   size="md"
                   onClick={() => handleSlotClick(slotIdx)}
                   draggable={!!tile}

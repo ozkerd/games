@@ -6,6 +6,7 @@ interface OkeyTileProps {
   tile: Tile | null;
   isOkey?: boolean;
   isSelected?: boolean;
+  isHighlighted?: boolean;
   size?: 'sm' | 'md' | 'lg';
   onClick?: () => void;
   onDoubleClick?: () => void;
@@ -53,6 +54,7 @@ export const OkeyTile: React.FC<OkeyTileProps> = ({
   tile,
   isOkey = false,
   isSelected = false,
+  isHighlighted = false,
   size = 'md',
   onClick,
   onDoubleClick,
@@ -87,18 +89,30 @@ export const OkeyTile: React.FC<OkeyTileProps> = ({
       } ${
         isSelected
           ? '-translate-y-2 ring-2 ring-amber-400 shadow-xl shadow-amber-500/30 scale-105'
+          : isHighlighted
+          ? 'ring-2 ring-emerald-400 shadow-lg shadow-emerald-500/40 -translate-y-0.5'
           : 'hover:-translate-y-0.5 active:translate-y-0 shadow-md'
       }`}
       style={{
         // Melamine ivory gradient & 3D bevel box-shadow
-        background: 'linear-gradient(145deg, #fffdfa 0%, #fef7ed 60%, #fde68a 100%)',
+        background: isHighlighted
+          ? 'linear-gradient(145deg, #ffffff 0%, #f0fdf4 60%, #dcfce7 100%)'
+          : 'linear-gradient(145deg, #fffdfa 0%, #fef7ed 60%, #fde68a 100%)',
         boxShadow: isSelected
           ? '0 10px 18px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2), inset 0 1px 2px rgba(255, 255, 255, 0.9), inset 0 -2px 3px rgba(180, 83, 9, 0.2)'
+          : isHighlighted
+          ? '0 6px 12px -1px rgba(16, 185, 129, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.9), inset 0 -2px 3px rgba(5, 150, 105, 0.3)'
           : '0 4px 6px -1px rgba(0, 0, 0, 0.35), 0 2px 4px -1px rgba(0, 0, 0, 0.2), inset 0 1px 2px rgba(255, 255, 255, 0.9), inset 0 -2px 3px rgba(180, 83, 9, 0.25)',
-        border: '1px solid #fef3c7',
-        borderBottom: '3px solid #d97706',
+        border: isHighlighted ? '1.5px solid #34d399' : '1px solid #fef3c7',
+        borderBottom: isHighlighted ? '3px solid #059669' : '3px solid #d97706',
       }}
     >
+      {/* Highlighted check badge for tiles forming valid melds */}
+      {isHighlighted && !isOkey && (
+        <div className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border border-white flex items-center justify-center text-white shadow-sm z-10">
+          <span className="text-[8px] font-black leading-none">✓</span>
+        </div>
+      )}
       {/* Okey Badge if this tile is the Okey joker */}
       {isOkey && (
         <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-500 border border-white flex items-center justify-center text-white shadow-sm z-10 animate-pulse">
