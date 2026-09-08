@@ -24,7 +24,7 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onSelectGame }) => {
             Play Instant Web Games Together 🎮
           </h1>
           <p className="text-slate-300 text-base sm:text-lg leading-relaxed">
-            Welcome to <strong className="text-white">games.primerllm.com</strong>! Play solo against smart AI opponents or compete with friends on the same keyboard.
+            Welcome to <strong className="text-white">Games</strong>! Play solo against smart AI opponents or compete with friends on the same keyboard.
           </p>
         </div>
       </div>

@@ -170,7 +170,7 @@ export const App: React.FC = () => {
       <footer className="border-t border-slate-800/80 py-6 text-center text-xs text-slate-500">
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
-            🎮 <strong>games.primerllm.com</strong> — 4 Arcade Games on Cloudflare Pages
+            🎮 <strong>Games</strong> — Arcade & Board Games Portal
           </p>
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1 text-slate-400">

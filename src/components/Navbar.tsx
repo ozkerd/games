@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gamepad2, LayoutGrid, Cloud, RotateCcw } from 'lucide-react';
+import { Gamepad2, LayoutGrid, RotateCcw } from 'lucide-react';
 import { PlayerScore, ActiveView } from '../types';
 
 interface NavbarProps {
@@ -32,15 +32,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Gamepad2 className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-display font-bold text-lg text-white tracking-wide group-hover:text-indigo-300 transition-colors">
-                  games.primerllm.com
-                </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                  <Cloud className="w-3 h-3" /> Cloudflare Pages
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">Arcade Games Hub & Dual Battles</p>
+              <span className="font-display font-extrabold text-2xl text-white tracking-wide group-hover:text-indigo-300 transition-colors">
+                Games
+              </span>
+              <p className="text-xs text-slate-400">Arcade & Board Games Portal</p>
             </div>
           </button>
         </div>
