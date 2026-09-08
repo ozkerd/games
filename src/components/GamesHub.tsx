@@ -51,12 +51,64 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onSelectGame }) => {
           ))}
         </div>
         <span className="text-xs text-emerald-400 font-mono flex items-center gap-1.5 font-bold">
-          <Flame className="w-4 h-4 fill-current" /> 4 Live Games Active
+          <Flame className="w-4 h-4 fill-current" /> 5 Live Games Active
         </span>
       </div>
 
       {/* Games Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+        {/* Game 0: OKEY & 101 OKEY (FEATURED NEW) */}
+        <div className="group relative bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-900 border-2 border-amber-500/60 hover:border-amber-400 rounded-3xl p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-amber-500/25 flex flex-col justify-between md:col-span-2">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center font-bold text-3xl shadow-lg shadow-amber-600/30 group-hover:scale-110 transition-transform">
+                🀄
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-wider animate-pulse">
+                  🔥 YENİ: DÜZ OKEY & 101
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
+                Geleneksel Türk Masa Oyunu • 2 & 4 Kişilik • Online & AI
+              </span>
+              <h3 className="font-display text-3xl font-extrabold text-white mt-1">
+                Okey & 101 Okey (Yüzbir)
+              </h3>
+              <p className="text-sm text-slate-300 mt-2 leading-relaxed max-w-3xl">
+                Gerçekçi ahşap ıstaka ve 3D fildişi melamin taşlarla Düz Okey ve 101 Okey keyfi! Akıllı yapay zeka botlarına karşı hemen oynayın veya arkadaşınıza oda linki göndererek online katılmasını sağlayın.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-2">
+              <span className="inline-flex items-center gap-1 text-[11px] px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-amber-200 font-semibold">
+                🀄 Düz Okey & 101 Okey
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300">
+                <Users className="w-3.5 h-3.5 text-amber-400" /> 2 & 4 Kişilik Masa
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300">
+                <Brain className="w-3.5 h-3.5 text-purple-400" /> Akıllı AI Botlar
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Online Link ile Katılım
+              </span>
+            </div>
+          </div>
+
+          <div className="pt-6 mt-6 border-t border-slate-800/80">
+            <button
+              onClick={() => onSelectGame('game_okey')}
+              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white font-display font-extrabold text-lg shadow-xl shadow-amber-600/30 flex items-center justify-center gap-3 group-hover:gap-4 transition-all"
+            >
+              <Play className="w-5 h-5 fill-current" />
+              Okey Oyna (Düz & 101)
+            </button>
+          </div>
+        </div>
         {/* Game 1: Dual Hangman */}
         <div className="group relative bg-slate-900/90 border-2 border-indigo-500/40 hover:border-indigo-500 rounded-3xl p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/20 flex flex-col justify-between">
           <div className="space-y-4">

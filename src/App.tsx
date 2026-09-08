@@ -5,12 +5,21 @@ import { DualHangmanGame } from './components/hangman/DualHangmanGame';
 import { Connect4Game } from './components/games/Connect4Game';
 import { MemoryCardGame } from './components/games/MemoryCardGame';
 import { TicTacToeGame } from './components/games/TicTacToeGame';
+import { OkeyGame } from './components/okey/OkeyGame';
 import { GameOverModal } from './components/GameOverModal';
 import { ActiveView, PlayerScore } from './types';
 import { HelpCircle } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<ActiveView>('hub');
+  // Check if room or game URL param is present
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialRoom = urlParams.get('room') || '';
+  const initialGameParam = urlParams.get('game');
+
+  const [activeView, setActiveView] = useState<ActiveView>(
+    initialGameParam === 'okey' || initialRoom ? 'game_okey' : 'hub'
+  );
+  const [initialOkeyRoom] = useState<string>(initialRoom);
   const [player1Name] = useState('Player 1');
   const [player2Name] = useState('Player 2');
 
@@ -130,6 +139,14 @@ export const App: React.FC = () => {
             player1Name={player1Name}
             player2Name={player2Name}
             onGameOver={handleGenericGameOver}
+            onBackToHub={handleBackToHub}
+          />
+        )}
+
+        {/* 5. Okey & 101 Okey */}
+        {activeView === 'game_okey' && (
+          <OkeyGame
+            initialRoomCode={initialOkeyRoom}
             onBackToHub={handleBackToHub}
           />
         )}

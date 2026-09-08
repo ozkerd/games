@@ -3,7 +3,8 @@ export type ActiveView =
   | 'game_hangman'
   | 'game_connect4'
   | 'game_memory'
-  | 'game_tictactoe';
+  | 'game_tictactoe'
+  | 'game_okey';
 
 export type GameStage = 'setup' | 'playing' | 'gameover';
 
