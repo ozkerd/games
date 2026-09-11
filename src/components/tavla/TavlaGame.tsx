@@ -328,8 +328,87 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
         </div>
       </div>
 
+      {/* High-Contrast Player & Movement Direction Guide */}
+      <div className="w-full max-w-7xl grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+        {/* White Player Guide Card */}
+        <div
+          className={`p-3 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between ${
+            gameState.currentTurn === 'white'
+              ? 'bg-amber-950/40 border-amber-400 shadow-lg shadow-amber-500/20 ring-2 ring-amber-400/50'
+              : 'bg-stone-900/60 border-stone-800 opacity-70'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white via-amber-50 to-stone-200 border-2 border-amber-300 shadow-[0_4px_10px_rgba(0,0,0,0.5)] flex items-center justify-center text-base">
+              ⚪
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-amber-200">
+                  BEYAZ (Siz / Oyuncu 1)
+                </span>
+                {gameState.currentTurn === 'white' && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-400 text-stone-950 font-black text-[10px] animate-pulse">
+                    SIRA SİZDE
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-stone-300 flex items-center gap-2 mt-0.5">
+                <span>Yön: <strong className="text-white">24 ➔ 1</strong> (Saat yönünün tersi)</span>
+                <span>•</span>
+                <span className="text-emerald-400 font-bold">Toplama: Sağ Alt (1-6)</span>
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-[10px] uppercase font-bold text-stone-400 block">Toplanan</span>
+            <span className="text-base font-black text-amber-300 font-mono">
+              {gameState.borneOff.white} / 15
+            </span>
+          </div>
+        </div>
+
+        {/* Black Player Guide Card */}
+        <div
+          className={`p-3 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between ${
+            gameState.currentTurn === 'black'
+              ? 'bg-amber-950/40 border-amber-400 shadow-lg shadow-amber-500/20 ring-2 ring-amber-400/50'
+              : 'bg-stone-900/60 border-stone-800 opacity-70'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-stone-800 via-stone-900 to-black border-2 border-stone-700 shadow-[0_4px_10px_rgba(0,0,0,0.8)] flex items-center justify-center text-base">
+              ⚫
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-amber-200">
+                  SİYAH ({gameState.gameMode === 'vs_ai' ? 'Bilgisayar' : 'Oyuncu 2'})
+                </span>
+                {gameState.currentTurn === 'black' && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-600 text-white font-black text-[10px] animate-pulse">
+                    SIRA SİYAHTA
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-stone-300 flex items-center gap-2 mt-0.5">
+                <span>Yön: <strong className="text-white">1 ➔ 24</strong> (Saat yönü)</span>
+                <span>•</span>
+                <span className="text-emerald-400 font-bold">Toplama: Sağ Üst (19-24)</span>
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-[10px] uppercase font-bold text-stone-400 block">Toplanan</span>
+            <span className="text-base font-black text-amber-300 font-mono">
+              {gameState.borneOff.black} / 15
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Expansive Authentic Tavla Board */}
-      <div className="w-full flex-1 flex flex-col justify-center items-center my-2">
+      <div className="w-full flex-1 flex flex-col justify-center items-center my-1">
         <TavlaBoard
           points={gameState.points}
           bar={gameState.bar}
@@ -337,6 +416,11 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
           currentTurn={gameState.currentTurn}
           selectedPoint={gameState.selectedPoint}
           validDestinations={gameState.validDestinations}
+          dice={gameState.diceState.dice}
+          remainingMoves={gameState.diceState.remainingMoves}
+          isRolling={gameState.diceState.isRolling}
+          canRoll={canCurrentPlayerRoll}
+          onRoll={handleRollDice}
           onSelectPoint={handleSelectPoint}
           onMoveTo={handleMoveTo}
         />

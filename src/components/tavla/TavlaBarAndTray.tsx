@@ -22,17 +22,17 @@ export const TavlaBar: React.FC<TavlaBarProps> = ({
   const isBlackSelected = selectedPoint === 'bar' && currentTurn === 'black';
 
   return (
-    <div className="w-10 sm:w-14 md:w-16 h-full bg-gradient-to-r from-[#241309] via-[#3a2012] to-[#241309] border-x-2 border-[#57361f] flex flex-col items-center justify-between py-4 shadow-[inset_0_0_15px_rgba(0,0,0,0.8)] relative select-none">
-      {/* Brass Hinges Decorative Detail (Top & Bottom & Center) */}
-      <div className="w-5 h-4 rounded-sm bg-gradient-to-r from-amber-600 via-amber-300 to-amber-700 shadow-md border border-amber-900 flex items-center justify-around px-0.5">
-        <div className="w-1 h-1 rounded-full bg-amber-950" />
-        <div className="w-1 h-1 rounded-full bg-amber-950" />
+    <div className="w-12 sm:w-16 md:w-18 h-full bg-gradient-to-r from-[#1c0d05] via-[#33180b] to-[#1c0d05] border-x-4 border-[#61361b] flex flex-col items-center justify-between py-5 shadow-[inset_0_0_20px_rgba(0,0,0,0.95)] relative select-none">
+      {/* Brass Hinge (Top) */}
+      <div className="w-6 h-5 rounded bg-gradient-to-r from-amber-600 via-amber-300 to-amber-700 shadow-lg border border-amber-900 flex items-center justify-around px-0.5">
+        <div className="w-1.5 h-1.5 rounded-full bg-amber-950" />
+        <div className="w-1.5 h-1.5 rounded-full bg-amber-950" />
       </div>
 
-      {/* Black Hit Checkers (Top half of bar) */}
-      <div className="flex flex-col items-center gap-1">
-        <span className="text-[9px] font-bold uppercase text-amber-500/70 tracking-wider">
-          Bar
+      {/* Black Hit Checkers (Top half) */}
+      <div className="flex flex-col items-center gap-1.5 z-20">
+        <span className="text-[10px] font-black uppercase text-amber-400/90 tracking-widest bg-stone-950/80 px-1.5 py-0.5 rounded border border-amber-900/50">
+          BAR
         </span>
         {bar.black > 0 && (
           <div className="relative">
@@ -45,21 +45,21 @@ export const TavlaBar: React.FC<TavlaBarProps> = ({
               onClick={canSelectBar && currentTurn === 'black' ? onSelectBar : undefined}
             />
             {currentTurn === 'black' && (
-              <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-amber-400 whitespace-nowrap animate-pulse">
-                Girmeli
+              <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] font-black text-amber-300 bg-stone-900/95 px-1 rounded whitespace-nowrap animate-pulse border border-amber-500">
+                GİRMELİ!
               </span>
             )}
           </div>
         )}
       </div>
 
-      {/* Center Brass Joint */}
-      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 via-amber-300 to-amber-800 shadow-lg border border-amber-900 flex items-center justify-center">
-        <div className="w-2 h-2 rounded-full bg-amber-950 shadow-inner" />
+      {/* Center Brass Lock Plate */}
+      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 via-amber-200 to-amber-700 shadow-xl border-2 border-amber-950 flex items-center justify-center">
+        <div className="w-2.5 h-2.5 rounded-full bg-amber-950 shadow-inner" />
       </div>
 
-      {/* White Hit Checkers (Bottom half of bar) */}
-      <div className="flex flex-col items-center gap-1">
+      {/* White Hit Checkers (Bottom half) */}
+      <div className="flex flex-col items-center gap-1.5 z-20">
         {bar.white > 0 && (
           <div className="relative">
             <TavlaChecker
@@ -71,21 +71,21 @@ export const TavlaBar: React.FC<TavlaBarProps> = ({
               onClick={canSelectBar && currentTurn === 'white' ? onSelectBar : undefined}
             />
             {currentTurn === 'white' && (
-              <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-amber-300 whitespace-nowrap animate-pulse">
-                Girmeli!
+              <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black text-amber-300 bg-stone-900/95 px-1 rounded whitespace-nowrap animate-pulse border border-amber-500">
+                GİRMELİ!
               </span>
             )}
           </div>
         )}
-        <span className="text-[9px] font-bold uppercase text-amber-500/70 tracking-wider">
-          Bar
+        <span className="text-[10px] font-black uppercase text-amber-400/90 tracking-widest bg-stone-950/80 px-1.5 py-0.5 rounded border border-amber-900/50">
+          BAR
         </span>
       </div>
 
-      {/* Bottom Brass Hinge */}
-      <div className="w-5 h-4 rounded-sm bg-gradient-to-r from-amber-600 via-amber-300 to-amber-700 shadow-md border border-amber-900 flex items-center justify-around px-0.5">
-        <div className="w-1 h-1 rounded-full bg-amber-950" />
-        <div className="w-1 h-1 rounded-full bg-amber-950" />
+      {/* Brass Hinge (Bottom) */}
+      <div className="w-6 h-5 rounded bg-gradient-to-r from-amber-600 via-amber-300 to-amber-700 shadow-lg border border-amber-900 flex items-center justify-around px-0.5">
+        <div className="w-1.5 h-1.5 rounded-full bg-amber-950" />
+        <div className="w-1.5 h-1.5 rounded-full bg-amber-950" />
       </div>
     </div>
   );
@@ -105,52 +105,90 @@ export const TavlaTray: React.FC<TavlaTrayProps> = ({
   onBearOff,
 }) => {
   return (
-    <div className="w-14 sm:w-20 md:w-24 h-full bg-gradient-to-b from-[#211107] via-[#2f190c] to-[#211107] border-l-4 border-[#52331c] flex flex-col justify-between p-2 shadow-[inset_0_0_20px_rgba(0,0,0,0.9)] select-none">
+    <div className="w-16 sm:w-24 md:w-28 h-full bg-gradient-to-b from-[#180b04] via-[#281308] to-[#180b04] border-l-4 border-[#5a3219] flex flex-col justify-between p-2.5 shadow-[inset_0_0_25px_rgba(0,0,0,0.95)] select-none">
       {/* Black Bear-Off Slot (Top) */}
       <div
         onClick={currentTurn === 'black' && isValidBearOff ? onBearOff : undefined}
-        className={`h-40 rounded-xl border flex flex-col items-center justify-center p-2 transition-all ${
+        className={`flex-1 max-h-[220px] rounded-2xl border-2 flex flex-col items-center justify-between p-2 transition-all ${
           currentTurn === 'black' && isValidBearOff
-            ? 'bg-emerald-900/40 border-emerald-400 ring-2 ring-emerald-400 animate-pulse cursor-pointer'
-            : 'bg-stone-950/40 border-amber-900/30'
+            ? 'bg-emerald-950/60 border-emerald-400 ring-4 ring-emerald-400/50 animate-pulse cursor-pointer shadow-xl shadow-emerald-500/30'
+            : 'bg-stone-950/60 border-amber-900/40'
         }`}
       >
-        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-500/80 mb-1">
-          Siyah Toplama
-        </span>
-        <div className="text-xl sm:text-2xl font-black text-white font-mono">
-          {borneOff.black} <span className="text-xs text-stone-500 font-normal">/15</span>
+        <div className="text-center">
+          <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-300 block">
+            ⚫ SİYAH EVİ
+          </span>
+          <span className="text-[9px] text-stone-400 font-medium">
+            (19-24 Toplama)
+          </span>
         </div>
-        {currentTurn === 'black' && isValidBearOff && (
-          <div className="mt-2 flex items-center gap-1 text-[10px] font-black text-emerald-300">
-            <Download className="w-3 h-3 animate-bounce" /> TOPLA
+
+        {/* Borne-off Count and Mini Checkers representation */}
+        <div className="flex flex-col items-center my-1">
+          <div className="text-2xl sm:text-3xl font-black text-white font-mono drop-shadow">
+            {borneOff.black} <span className="text-xs text-stone-400 font-normal">/15</span>
           </div>
+          {borneOff.black > 0 && (
+            <div className="flex -space-x-2 mt-1">
+              {Array.from({ length: Math.min(borneOff.black, 4) }).map((_, i) => (
+                <div key={i} className="w-4 h-4 rounded-full bg-stone-950 border border-amber-600 shadow" />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {currentTurn === 'black' && isValidBearOff ? (
+          <div className="w-full py-1 rounded-lg bg-emerald-500 text-stone-950 font-black text-[11px] flex items-center justify-center gap-1 shadow-lg animate-bounce">
+            <Download className="w-3.5 h-3.5" /> TOPLA!
+          </div>
+        ) : (
+          <span className="text-[9px] text-stone-500 uppercase font-bold">Hedef: 15</span>
         )}
       </div>
 
-      {/* Tray Wooden Divider */}
-      <div className="h-0.5 bg-gradient-to-r from-transparent via-amber-600/40 to-transparent my-2" />
+      {/* Tray Wooden Divider & Inlay */}
+      <div className="h-1 bg-gradient-to-r from-amber-900/30 via-amber-500/50 to-amber-900/30 my-3 rounded-full" />
 
       {/* White Bear-Off Slot (Bottom) */}
       <div
         onClick={currentTurn === 'white' && isValidBearOff ? onBearOff : undefined}
-        className={`h-40 rounded-xl border flex flex-col items-center justify-center p-2 transition-all ${
+        className={`flex-1 max-h-[220px] rounded-2xl border-2 flex flex-col items-center justify-between p-2 transition-all ${
           currentTurn === 'white' && isValidBearOff
-            ? 'bg-emerald-900/40 border-emerald-400 ring-2 ring-emerald-400 animate-pulse cursor-pointer shadow-lg shadow-emerald-500/20'
-            : 'bg-stone-950/40 border-amber-900/30'
+            ? 'bg-emerald-950/60 border-emerald-400 ring-4 ring-emerald-400/50 animate-pulse cursor-pointer shadow-xl shadow-emerald-500/30'
+            : 'bg-stone-950/60 border-amber-900/40'
         }`}
       >
-        {currentTurn === 'white' && isValidBearOff && (
-          <div className="mb-2 flex items-center gap-1 text-[10px] font-black text-emerald-300">
-            <Download className="w-3 h-3 animate-bounce" /> TOPLA
+        {currentTurn === 'white' && isValidBearOff ? (
+          <div className="w-full py-1 rounded-lg bg-emerald-500 text-stone-950 font-black text-[11px] flex items-center justify-center gap-1 shadow-lg animate-bounce">
+            <Download className="w-3.5 h-3.5" /> TOPLA!
           </div>
+        ) : (
+          <span className="text-[9px] text-stone-500 uppercase font-bold">Hedef: 15</span>
         )}
-        <div className="text-xl sm:text-2xl font-black text-amber-200 font-mono">
-          {borneOff.white} <span className="text-xs text-stone-500 font-normal">/15</span>
+
+        {/* Borne-off Count and Mini Checkers representation */}
+        <div className="flex flex-col items-center my-1">
+          {borneOff.white > 0 && (
+            <div className="flex -space-x-2 mb-1">
+              {Array.from({ length: Math.min(borneOff.white, 4) }).map((_, i) => (
+                <div key={i} className="w-4 h-4 rounded-full bg-amber-100 border border-amber-500 shadow" />
+              ))}
+            </div>
+          )}
+          <div className="text-2xl sm:text-3xl font-black text-amber-200 font-mono drop-shadow">
+            {borneOff.white} <span className="text-xs text-stone-400 font-normal">/15</span>
+          </div>
         </div>
-        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-500/80 mt-1">
-          Beyaz Toplama
-        </span>
+
+        <div className="text-center">
+          <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-300 block">
+            ⚪ BEYAZ EVİ
+          </span>
+          <span className="text-[9px] text-stone-400 font-medium">
+            (1-6 Toplama)
+          </span>
+        </div>
       </div>
     </div>
   );
