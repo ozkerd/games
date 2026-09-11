@@ -22,130 +22,125 @@ const DICE_PIPS: Record<number, number[]> = {
   6: [0, 2, 3, 5, 6, 8],
 };
 
-// Target 3D rotations to bring a specific face (1 to 6) to the front
-const CUBE_ROTATIONS: Record<number, { x: number; y: number }> = {
-  1: { x: 0, y: 0 },
-  6: { x: 0, y: 180 },
-  2: { x: 0, y: -90 },
-  5: { x: 0, y: 90 },
-  3: { x: -90, y: 0 },
-  4: { x: 90, y: 0 },
+// Settle rotation to face the rolled number directly to the camera with organic tilt
+export const getSettleRotation = (value: number, dieIndex: 1 | 2 = 1): string => {
+  const zTilt = dieIndex === 1 ? -6 : 8;
+  switch (value) {
+    case 1:
+      return `rotateX(0deg) rotateY(0deg) rotateZ(${zTilt}deg)`;
+    case 6:
+      return `rotateX(0deg) rotateY(180deg) rotateZ(${zTilt}deg)`;
+    case 2:
+      return `rotateX(-90deg) rotateY(0deg) rotateZ(${zTilt}deg)`;
+    case 5:
+      return `rotateX(90deg) rotateY(0deg) rotateZ(${zTilt}deg)`;
+    case 3:
+      return `rotateX(0deg) rotateY(90deg) rotateZ(${zTilt}deg)`;
+    case 4:
+      return `rotateX(0deg) rotateY(-90deg) rotateZ(${zTilt}deg)`;
+    default:
+      return `rotateX(0deg) rotateY(0deg) rotateZ(${zTilt}deg)`;
+  }
 };
 
-export const DieFaceFlat: React.FC<{ value: number; size?: 'sm' | 'md' | 'lg' }> = ({
-  value,
-  size = 'md',
-}) => {
-  const pips = DICE_PIPS[value] || [4];
-  const pipSize = size === 'lg' ? 'w-2.5 h-2.5' : size === 'md' ? 'w-2 h-2' : 'w-1.5 h-1.5';
-
-  return (
-    <div className="w-full h-full p-1 grid grid-cols-3 grid-rows-3 bg-gradient-to-br from-[#ffffff] via-[#f7f2e8] to-[#e4d6c2] border border-[#bfae98] rounded-xl shadow-[inset_0_1px_3px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(0,0,0,0.2)]">
-      {Array.from({ length: 9 }).map((_, idx) => (
-        <div key={idx} className="flex items-center justify-center">
-          {pips.includes(idx) && (
-            <div
-              className={`${pipSize} rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.9)] ${
-                value === 1 ? 'bg-red-600 ring-1 ring-red-800' : 'bg-[#150d06] ring-1 ring-black/40'
-              }`}
-            />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// True 3D Cube Die
-export const Die3DCube: React.FC<{
+// True 3D Melamine/Bone Die Cube with 6 Faces and 3D Rolling Tumbler
+export const RealisticDie: React.FC<{
   value: number;
   isRolling: boolean;
   isUsed?: boolean;
+  dieIndex?: 1 | 2;
   size?: number;
-}> = ({ value, isRolling, isUsed = false, size = 52 }) => {
-  const half = size / 2;
-  const targetRotation = CUBE_ROTATIONS[value || 1] || { x: 0, y: 0 };
+}> = ({ value, isRolling, isUsed = false, dieIndex = 1, size = 52 }) => {
+  const half = Math.round(size / 2);
+  const settleRotation = getSettleRotation(value || 1, dieIndex);
 
-  return (
-    <div
-      className="relative select-none flex items-center justify-center"
-      style={{
-        width: `${size + 16}px`,
-        height: `${size + 16}px`,
-        perspective: '800px',
-      }}
-    >
-      {/* Dynamic 3D Cast Shadow */}
-      <div
-        className={`absolute -bottom-2 w-12 h-4 rounded-full bg-black/75 blur-sm transition-all duration-300 pointer-events-none ${
-          isRolling ? 'scale-75 opacity-40 translate-y-2' : 'scale-100 opacity-80'
-        }`}
-      />
+  const rollClass = isRolling
+    ? dieIndex === 1
+      ? 'animate-3d-roll-1'
+      : 'animate-3d-roll-2'
+    : '';
 
-      {/* 3D Rotating Cube Container */}
+  const shadowClass = isRolling
+    ? dieIndex === 1
+      ? 'animate-3d-shadow-1'
+      : 'animate-3d-shadow-2'
+    : 'filter blur-[4px] scale-100 opacity-80';
+
+  const renderFace = (faceNum: number, transform: string) => {
+    const pips = DICE_PIPS[faceNum] || [];
+    const isAce = faceNum === 1;
+
+    return (
       <div
-        className={`relative transition-all ${
-          isRolling ? 'animate-bounce' : ''
-        } ${isUsed ? 'opacity-35 grayscale scale-90' : 'hover:scale-105'}`}
+        className="absolute rounded-xl flex items-center justify-center p-1 select-none pointer-events-none"
         style={{
           width: `${size}px`,
           height: `${size}px`,
-          transformStyle: 'preserve-3d',
-          transform: isRolling
-            ? 'rotateX(720deg) rotateY(1080deg) rotateZ(360deg)'
-            : `rotateX(${targetRotation.x}deg) rotateY(${targetRotation.y}deg)`,
-          transition: isRolling
-            ? 'transform 0.8s cubic-bezier(0.2, 0.8, 0.4, 1.2)'
-            : 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s',
+          transform,
+          backfaceVisibility: 'hidden',
+          background: 'linear-gradient(145deg, #ffffff 0%, #faf4eb 45%, #ebdcc9 100%)',
+          boxShadow:
+            'inset 0 1.5px 2px rgba(255,255,255,0.95), inset 0 -1.5px 2px rgba(0,0,0,0.18)',
+          border: '1.5px solid #d4c3ae',
         }}
       >
-        {/* Face 1 (Front: Z+) */}
-        <div
-          className="absolute inset-0 backface-hidden"
-          style={{ transform: `translateZ(${half}px)` }}
-        >
-          <DieFaceFlat value={1} size="md" />
-        </div>
+        {/* Specular highlight gloss */}
+        <div className="absolute top-0.5 left-1 right-1 h-1/3 rounded-t-lg bg-gradient-to-b from-white/70 via-white/10 to-transparent pointer-events-none" />
 
-        {/* Face 6 (Back: Z-) */}
-        <div
-          className="absolute inset-0 backface-hidden"
-          style={{ transform: `rotateY(180deg) translateZ(${half}px)` }}
-        >
-          <DieFaceFlat value={6} size="md" />
+        {/* 3x3 Grid for Pips */}
+        <div className="w-full h-full grid grid-cols-3 grid-rows-3 p-1">
+          {Array.from({ length: 9 }).map((_, idx) => (
+            <div key={idx} className="flex items-center justify-center">
+              {pips.includes(idx) && (
+                <div
+                  className={`rounded-full ${
+                    isAce
+                      ? 'w-3.5 h-3.5 bg-gradient-to-br from-red-500 via-red-600 to-red-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.85)] ring-1 ring-red-900/60'
+                      : 'w-2.5 h-2.5 bg-gradient-to-br from-[#2a1c12] to-[#0a0502] shadow-[inset_0_1px_2px_rgba(0,0,0,0.95)] ring-1 ring-black/40'
+                  }`}
+                />
+              )}
+            </div>
+          ))}
         </div>
+      </div>
+    );
+  };
 
-        {/* Face 2 (Right: X+) */}
-        <div
-          className="absolute inset-0 backface-hidden"
-          style={{ transform: `rotateY(90deg) translateZ(${half}px)` }}
-        >
-          <DieFaceFlat value={2} size="md" />
-        </div>
+  return (
+    <div
+      className="dice-perspective-container relative flex items-center justify-center select-none"
+      style={{
+        width: `${size + 16}px`,
+        height: `${size + 16}px`,
+      }}
+    >
+      {/* 3D Cast Shadow */}
+      <div
+        className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-12 h-3.5 rounded-full bg-black/85 transition-all duration-300 pointer-events-none ${shadowClass}`}
+      />
 
-        {/* Face 5 (Left: X-) */}
-        <div
-          className="absolute inset-0 backface-hidden"
-          style={{ transform: `rotateY(-90deg) translateZ(${half}px)` }}
-        >
-          <DieFaceFlat value={5} size="md" />
-        </div>
-
-        {/* Face 3 (Top: Y+) */}
-        <div
-          className="absolute inset-0 backface-hidden"
-          style={{ transform: `rotateX(90deg) translateZ(${half}px)` }}
-        >
-          <DieFaceFlat value={3} size="md" />
-        </div>
-
-        {/* Face 4 (Bottom: Y-) */}
-        <div
-          className="absolute inset-0 backface-hidden"
-          style={{ transform: `rotateX(-90deg) translateZ(${half}px)` }}
-        >
-          <DieFaceFlat value={4} size="md" />
-        </div>
+      {/* 3D Rolling Cube */}
+      <div
+        className={`dice-cube ${rollClass} ${
+          isUsed ? 'opacity-30 grayscale scale-90' : 'hover:scale-105'
+        }`}
+        style={
+          {
+            width: `${size}px`,
+            height: `${size}px`,
+            '--settle-rotation': settleRotation,
+            transform: isRolling ? undefined : settleRotation,
+          } as React.CSSProperties
+        }
+      >
+        {/* 6 Opposing Faces (Opposite faces sum to 7: 1-6, 2-5, 3-4) */}
+        {renderFace(1, `rotateY(0deg) translateZ(${half}px)`)}
+        {renderFace(6, `rotateY(180deg) translateZ(${half}px)`)}
+        {renderFace(2, `rotateX(90deg) translateZ(${half}px)`)}
+        {renderFace(5, `rotateX(-90deg) translateZ(${half}px)`)}
+        {renderFace(3, `rotateY(-90deg) translateZ(${half}px)`)}
+        {renderFace(4, `rotateY(90deg) translateZ(${half}px)`)}
       </div>
     </div>
   );
@@ -207,12 +202,12 @@ export const TavlaDice: React.FC<TavlaDiceProps> = ({
         </div>
       </div>
 
-      {/* 3D Dice Display and Roll Button */}
+      {/* Realistic Dice Display and Roll Button */}
       <div className="flex items-center gap-5">
         {d1 > 0 && d2 > 0 && (
-          <div className="flex items-center gap-3 bg-stone-950/80 p-2 rounded-2xl border border-amber-900/50 shadow-inner">
-            <Die3DCube value={d1} isRolling={isRolling} isUsed={d1Used} size={48} />
-            <Die3DCube value={d2} isRolling={isRolling} isUsed={d2Used} size={48} />
+          <div className="flex items-center gap-4 bg-stone-950/85 p-2 rounded-2xl border border-amber-900/60 shadow-inner">
+            <RealisticDie value={d1} isRolling={isRolling} isUsed={d1Used} dieIndex={1} size={50} />
+            <RealisticDie value={d2} isRolling={isRolling} isUsed={d2Used} dieIndex={2} size={50} />
           </div>
         )}
 

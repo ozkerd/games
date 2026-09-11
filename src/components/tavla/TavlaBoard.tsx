@@ -2,7 +2,7 @@ import React from 'react';
 import { BoardPoint, PlayerColor, TavlaHint } from '../../games/tavla/types';
 import { TavlaPoint } from './TavlaPoint';
 import { TavlaBar, TavlaTray } from './TavlaBarAndTray';
-import { Die3DCube } from './TavlaDice';
+import { RealisticDie } from './TavlaDice';
 import { Dices } from 'lucide-react';
 
 interface TavlaBoardProps {
@@ -166,15 +166,11 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
                 </button>
               )}
 
-              {/* Active 3D Cube Dice on Board */}
+              {/* Active Realistic 3D Rolling Dice on Board */}
               {(d1 > 0 || isRolling) && (
-                <div
-                  className={`flex items-center gap-4 p-3 rounded-2xl bg-stone-950/80 backdrop-blur-md border-2 border-amber-600/50 shadow-2xl transition-all duration-300 ${
-                    isRolling ? 'scale-125' : 'scale-105'
-                  }`}
-                >
-                  <Die3DCube value={d1 || 1} isRolling={isRolling} isUsed={d1Used} size={50} />
-                  <Die3DCube value={d2 || 1} isRolling={isRolling} isUsed={d2Used} size={50} />
+                <div className="flex items-center gap-7 py-2 px-3 pointer-events-none transition-all duration-300">
+                  <RealisticDie value={d1 || 1} isRolling={isRolling} isUsed={d1Used} dieIndex={1} size={52} />
+                  <RealisticDie value={d2 || 1} isRolling={isRolling} isUsed={d2Used} dieIndex={2} size={52} />
                 </div>
               )}
             </div>

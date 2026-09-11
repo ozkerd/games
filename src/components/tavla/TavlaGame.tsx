@@ -10,6 +10,7 @@ import {
   Sparkles,
   Lightbulb,
   CheckCircle2,
+  X,
 } from 'lucide-react';
 import { PlayerColor, TavlaGameState, TavlaHint } from '../../games/tavla/types';
 import {
@@ -186,13 +187,37 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     }));
   };
 
-  // Step-by-Step Animated Move Execution
+  // Step-by-Step Animated Move Execution (Paced comfortably so each step is clearly observed)
   const executeAnimatedMove = useCallback((from: number | 'bar', to: number | 'off', onComplete?: () => void) => {
     const possibleMoves = getValidMovesForOrigin(gameState, gameState.currentTurn, from);
     const chosenMove = possibleMoves.find((m) => m.to === to);
     if (!chosenMove) return;
 
-    // Animate stepping across intermediate points
+    // Moving from Bar to Point on Board
+    if (from === 'bar' && typeof to === 'number') {
+      setSteppingPoint(to);
+      if (soundEnabled) tavlaAudio.playCheckerMove();
+      setTimeout(() => {
+        setSteppingPoint(null);
+        finalizeMove(from, to, chosenMove.diceUsed, chosenMove.isHit);
+        if (onComplete) onComplete();
+      }, 300);
+      return;
+    }
+
+    // Moving to Bear-Off Tray
+    if (typeof from === 'number' && to === 'off') {
+      setSteppingPoint(from);
+      if (soundEnabled) tavlaAudio.playCheckerMove();
+      setTimeout(() => {
+        setSteppingPoint(null);
+        finalizeMove(from, to, chosenMove.diceUsed, chosenMove.isHit);
+        if (onComplete) onComplete();
+      }, 300);
+      return;
+    }
+
+    // Standard Point to Point: Animate stepping across intermediate points (220ms per point hop)
     if (typeof from === 'number' && typeof to === 'number') {
       const step = from < to ? 1 : -1;
       let current = from + step;
@@ -207,7 +232,7 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
           finalizeMove(from, to, chosenMove.diceUsed, chosenMove.isHit);
           if (onComplete) onComplete();
         }
-      }, 55);
+      }, 220);
     } else {
       finalizeMove(from, to, chosenMove.diceUsed, chosenMove.isHit);
       if (onComplete) onComplete();
@@ -532,12 +557,22 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
             </div>
           </div>
 
-          <button
-            onClick={handlePlayHint}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-black text-xs shadow-lg active:scale-95 transition-all cursor-pointer whitespace-nowrap"
-          >
-            <CheckCircle2 className="w-4 h-4" /> Bu Hamleyi Oyna
-          </button>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              onClick={handlePlayHint}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-black text-xs shadow-lg active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+            >
+              <CheckCircle2 className="w-4 h-4" /> Bu Hamleyi Oyna
+            </button>
+            <button
+              onClick={() => setHintEnabled(false)}
+              className="flex items-center gap-1 px-3 py-2 rounded-xl bg-stone-800/90 hover:bg-stone-700 text-stone-300 hover:text-white border border-stone-700 text-xs font-bold transition-all cursor-pointer shadow-md active:scale-95"
+              title="İpucunu Kapat"
+            >
+              <X className="w-4 h-4 text-amber-400" />
+              <span>Kapat</span>
+            </button>
+          </div>
         </div>
       )}
 

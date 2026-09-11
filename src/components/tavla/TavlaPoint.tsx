@@ -149,10 +149,14 @@ export const TavlaPoint: React.FC<TavlaPointProps> = ({
       {/* Step-by-Step Moving Checker Gliding Indicator */}
       {isStepping && (
         <div
-          className={`absolute z-40 left-1/2 -translate-x-1/2 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-amber-300/90 border-2 border-amber-400 shadow-[0_0_20px_#f59e0b] animate-ping pointer-events-none ${
-            isTopRow ? 'top-8' : 'bottom-8'
+          className={`absolute z-40 left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-none transition-all duration-200 scale-110 ${
+            isTopRow ? 'top-10' : 'bottom-10'
           }`}
-        />
+        >
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-amber-300 via-amber-500 to-amber-700 border-2 border-amber-100 shadow-[0_0_30px_#f59e0b] animate-bounce flex items-center justify-center ring-4 ring-amber-400/50">
+            <div className="w-5 h-5 rounded-full bg-amber-100/90 shadow-inner" />
+          </div>
+        </div>
       )}
 
       {/* Checkers Stack - FLUSH to Top Rail or Bottom Rail */}
