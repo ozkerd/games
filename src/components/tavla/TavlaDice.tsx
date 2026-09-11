@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dices } from 'lucide-react';
 import { PlayerColor } from '../../games/tavla/types';
 
@@ -29,7 +29,21 @@ export const DieFace: React.FC<{
   isUsed?: boolean;
   size?: 'md' | 'lg';
 }> = ({ value, isRolling, isUsed = false, size = 'lg' }) => {
-  const pips = DICE_PIPS[value] || [];
+  const [displayValue, setDisplayValue] = useState(value || 1);
+
+  // During rolling, cycle random faces rapidly to simulate realistic tumble
+  useEffect(() => {
+    if (isRolling) {
+      const interval = setInterval(() => {
+        setDisplayValue(Math.floor(Math.random() * 6) + 1);
+      }, 60);
+      return () => clearInterval(interval);
+    } else {
+      setDisplayValue(value || 1);
+    }
+  }, [isRolling, value]);
+
+  const pips = DICE_PIPS[displayValue] || [4];
 
   const sizeClasses = size === 'lg'
     ? 'w-14 h-14 sm:w-16 sm:h-16'
@@ -50,17 +64,17 @@ export const DieFace: React.FC<{
 
       {/* 3D Ivory Bone Die Face */}
       <div
-        className={`relative ${sizeClasses} rounded-2xl bg-gradient-to-br from-[#ffffff] via-[#f7f2e7] to-[#e4d6c1] border-2 border-[#c5b49d] flex items-center justify-center transition-all duration-300 ${
-          isRolling ? 'animate-spin scale-110' : ''
+        className={`relative ${sizeClasses} rounded-2xl bg-gradient-to-br from-[#ffffff] via-[#f7f2e7] to-[#e4d6c1] border-2 border-[#c5b49d] flex items-center justify-center transition-all ${
+          isRolling ? 'animate-bounce' : ''
         } ${isUsed ? 'opacity-30 grayscale scale-90' : 'hover:scale-105'}`}
         style={{
           boxShadow: isRolling
-            ? '0 12px 24px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.9), inset 0 -3px 4px rgba(0,0,0,0.2)'
+            ? '0 14px 28px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.9), inset 0 -3px 4px rgba(0,0,0,0.3)'
             : '0 8px 16px rgba(0,0,0,0.55), 0 3px 0 #b39f86, inset 0 2px 4px rgba(255,255,255,0.9), inset 0 -3px 4px rgba(0,0,0,0.25)',
           transform: isRolling
-            ? 'rotate(720deg) scale(1.15)'
-            : undefined,
-          transition: 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s',
+            ? 'rotate(360deg) scale(1.18)'
+            : 'rotate(0deg) scale(1)',
+          transition: isRolling ? 'transform 0.2s linear' : 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
         {/* 3x3 grid for indented pips */}
@@ -70,7 +84,7 @@ export const DieFace: React.FC<{
               {pips.includes(idx) && (
                 <div
                   className={`${pipSize} rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.9)] ${
-                    value === 1
+                    displayValue === 1
                       ? 'bg-red-600 shadow-red-950 ring-1 ring-red-700/50'
                       : 'bg-[#181109] shadow-black ring-1 ring-black/30'
                   }`}
@@ -124,7 +138,7 @@ export const TavlaDice: React.FC<TavlaDiceProps> = ({
                   : 'bg-stone-800 text-amber-200 border border-stone-700'
               }`}
             >
-              {currentTurn === 'white' ? 'Sıra: Beyaz (Siz)' : 'Sıra: Siyah (Bilgisayar)'}
+              {currentTurn === 'white' ? 'Sıra: Beyaz (Siz)' : 'Sıra: Siyah'}
             </span>
 
             {remainingMoves.length > 0 && (
@@ -144,8 +158,8 @@ export const TavlaDice: React.FC<TavlaDiceProps> = ({
       <div className="flex items-center gap-5">
         {d1 > 0 && d2 > 0 && (
           <div className="flex items-center gap-4 bg-stone-950/80 p-2.5 rounded-2xl border border-amber-900/50 shadow-inner">
-            <DieFace value={d1} isRolling={isRolling} isUsed={d1Used} size="lg" />
-            <DieFace value={d2} isRolling={isRolling} isUsed={d2Used} size="lg" />
+            <DieFace value={d1} isRolling={isRolling} size="lg" isUsed={d1Used} />
+            <DieFace value={d2} isRolling={isRolling} size="lg" isUsed={d2Used} />
           </div>
         )}
 

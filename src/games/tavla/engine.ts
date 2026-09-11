@@ -109,6 +109,30 @@ export function canPlayerBearOff(state: TavlaGameState, player: PlayerColor): bo
   }
 }
 
+// Check if opponent home board is completely closed (all 6 points have 2+ checkers)
+export function isOpponentHomeBoardFullyClosed(state: TavlaGameState, player: PlayerColor): boolean {
+  const opponent: PlayerColor = player === 'white' ? 'black' : 'white';
+  if (player === 'white') {
+    // Black's home board is 19 to 24 (indices 18 to 23)
+    for (let i = 18; i < 24; i++) {
+      const pt = state.points[i];
+      if (pt.color !== opponent || pt.count < 2) {
+        return false;
+      }
+    }
+    return true;
+  } else {
+    // White's home board is 1 to 6 (indices 0 to 5)
+    for (let i = 0; i < 6; i++) {
+      const pt = state.points[i];
+      if (pt.color !== opponent || pt.count < 2) {
+        return false;
+      }
+    }
+    return true;
+  }
+}
+
 // Calculate legal destinations for a single checker move using a specific dice value
 export function getDestinationForDie(
   state: TavlaGameState,
@@ -346,13 +370,28 @@ export function applyMove(
     }
   }
 
+  let autoSelectedPoint: number | 'bar' | null = null;
+  let autoValidDests: Array<number | 'off'> = [];
+
+  if (nextBar[player] > 0 && remaining.length > 0) {
+    autoSelectedPoint = 'bar';
+    const intermediateState: TavlaGameState = {
+      ...prevState,
+      points: nextPoints,
+      bar: nextBar,
+      borneOff: nextBorneOff,
+      diceState: { ...prevState.diceState, remainingMoves: remaining },
+    };
+    autoValidDests = getValidMovesForOrigin(intermediateState, player, 'bar').map((m) => m.to);
+  }
+
   return {
     ...prevState,
     points: nextPoints,
     bar: nextBar,
     borneOff: nextBorneOff,
-    selectedPoint: null,
-    validDestinations: [],
+    selectedPoint: autoSelectedPoint,
+    validDestinations: autoValidDests,
     diceState: {
       ...prevState.diceState,
       remainingMoves: remaining,

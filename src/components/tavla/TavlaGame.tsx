@@ -7,6 +7,7 @@ import {
   getAllLegalMoves,
   applyMove,
   getDiceCallout,
+  isOpponentHomeBoardFullyClosed,
 } from '../../games/tavla/engine';
 import { chooseBestAiMove } from '../../games/tavla/ai';
 import { tavlaAudio } from '../../games/tavla/audio';
@@ -34,7 +35,17 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
   // Pass turn to the other player
   const passTurn = useCallback((prevState: TavlaGameState): TavlaGameState => {
     const nextTurn: PlayerColor = prevState.currentTurn === 'white' ? 'black' : 'white';
-    return {
+
+    // Check if next player has broken checkers AND all 6 entry gates are completely closed by primes
+    let isFullyClosed = false;
+    let statusMsg = `Sıra ${nextTurn === 'white' ? 'Beyaz' : 'Siyah'} oyuncuda. Zar atın!`;
+
+    if (prevState.bar[nextTurn] > 0 && isOpponentHomeBoardFullyClosed(prevState, nextTurn)) {
+      isFullyClosed = true;
+      statusMsg = `${nextTurn === 'white' ? 'Beyaz' : 'Siyah'} oyuncunun giriş kapıları tamamen kapalı (6 kapı dolu). Tahtaya girilemediği için sıra rakipte.`;
+    }
+
+    const nextState: TavlaGameState = {
       ...prevState,
       currentTurn: nextTurn,
       selectedPoint: null,
@@ -46,9 +57,17 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
         rollCallout: `${nextTurn === 'white' ? 'Beyaz' : 'Siyah'} oyuncu için zar bekleniyor.`,
         rolledBy: null,
       },
-      statusMessage: `Sıra ${nextTurn === 'white' ? 'Beyaz' : 'Siyah'} oyuncuda. Zar atın!`,
+      statusMessage: statusMsg,
       isAiThinking: false,
     };
+
+    if (isFullyClosed) {
+      setTimeout(() => {
+        setGameState((s) => passTurn(s));
+      }, 2000);
+    }
+
+    return nextState;
   }, []);
 
   // Roll dice action
@@ -73,6 +92,8 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
       const callout = getDiceCallout(d1, d2);
       const moves = d1 === d2 ? [d1, d1, d1, d1] : [d1, d2];
 
+      if (soundEnabled) tavlaAudio.playCheckerMove();
+
       setGameState((prev) => {
         const testState: TavlaGameState = {
           ...prev,
@@ -85,18 +106,33 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
           },
         };
 
+        // If player has checkers on bar, auto-select bar and compute valid entry destinations!
+        if (testState.bar[testState.currentTurn] > 0) {
+          testState.selectedPoint = 'bar';
+          const barMoves = getValidMovesForOrigin(testState, testState.currentTurn, 'bar');
+          testState.validDestinations = Array.from(new Set(barMoves.map((m) => m.to)));
+        }
+
         // Check if any legal move is possible
         const legal = getAllLegalMoves(testState, testState.currentTurn);
         if (legal.length === 0) {
-          testState.statusMessage = 'Gelen zarla oynanacak geçerli hamle yok! Sıra geçiyor.';
+          if (testState.bar[testState.currentTurn] > 0) {
+            testState.statusMessage = `Zarlar (${d1} - ${d2}) kapalı kapılara denk geldi! Kırık taş girilemedi, sıra rakibe geçiyor.`;
+          } else {
+            testState.statusMessage = `Gelen zarlarla (${d1} - ${d2}) oynanacak geçerli hamle yok! Sıra geçiyor.`;
+          }
           setTimeout(() => {
             setGameState((s) => passTurn(s));
-          }, 1400);
+          }, 1800);
+        } else if (testState.bar[testState.currentTurn] > 0) {
+          testState.statusMessage = 'Kırık taşınız için tahtadaki yeşil haneye tıklayarak girin!';
+        } else {
+          testState.statusMessage = 'Oynamak istediğiniz pulu seçin.';
         }
 
         return testState;
       });
-    }, 600);
+    }, 800);
   }, [gameState.diceState.isRolling, gameState.diceState.remainingMoves.length, gameState.winner, soundEnabled, passTurn]);
 
   // Handle selecting a point (or the bar)
@@ -105,8 +141,8 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     if (gameState.diceState.remainingMoves.length === 0) return;
     if (gameState.gameMode === 'vs_ai' && gameState.currentTurn === 'black') return;
 
-    // Check if clicked already selected point -> deselect
-    if (gameState.selectedPoint === from) {
+    // Check if clicked already selected point -> deselect (unless bar is forced)
+    if (gameState.selectedPoint === from && gameState.bar[gameState.currentTurn] === 0) {
       setGameState((prev) => ({
         ...prev,
         selectedPoint: null,
@@ -152,12 +188,28 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
       return;
     }
 
+    // Check remaining broken checkers on bar
+    if (nextState.bar[nextState.currentTurn] > 0) {
+      const remainingBarMoves = getValidMovesForOrigin(nextState, nextState.currentTurn, 'bar');
+      nextState.selectedPoint = 'bar';
+      nextState.validDestinations = Array.from(new Set(remainingBarMoves.map((m) => m.to)));
+
+      if (remainingBarMoves.length === 0 && nextState.diceState.remainingMoves.length > 0) {
+        nextState.statusMessage = 'Kalan zarla girilebilecek açık kapı yok. Sıra rakibe geçiyor.';
+        setGameState(nextState);
+        setTimeout(() => {
+          setGameState((prev) => passTurn(prev));
+        }, 1500);
+        return;
+      }
+    }
+
     // Check if remaining moves have any legal move left
     if (nextState.diceState.remainingMoves.length === 0) {
       // Turn complete! Switch player
       setTimeout(() => {
         setGameState((prev) => passTurn(prev));
-      }, 400);
+      }, 500);
       setGameState(nextState);
     } else {
       const remainingLegal = getAllLegalMoves(nextState, nextState.currentTurn);
@@ -167,7 +219,7 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
         setGameState(nextState);
         setTimeout(() => {
           setGameState((prev) => passTurn(prev));
-        }, 1200);
+        }, 1400);
       } else {
         setGameState(nextState);
       }

@@ -3,6 +3,7 @@ import { BoardPoint, PlayerColor } from '../../games/tavla/types';
 import { TavlaPoint } from './TavlaPoint';
 import { TavlaBar, TavlaTray } from './TavlaBarAndTray';
 import { DieFace } from './TavlaDice';
+import { Dices } from 'lucide-react';
 
 interface TavlaBoardProps {
   points: BoardPoint[];
@@ -92,24 +93,21 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
     <div className="w-full max-w-7xl mx-auto select-none transition-all duration-300">
       {/* Outer Luxury Walnut Wood Frame */}
       <div className="relative rounded-3xl p-3 sm:p-5 md:p-6 bg-gradient-to-br from-[#4a2613] via-[#2f170b] to-[#170a04] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.95),inset_0_2px_4px_rgba(255,255,255,0.25),inset_0_-4px_8px_rgba(0,0,0,0.85)] border-4 border-[#633a1e]">
-        {/* Brass Corner 1: Top-Left */}
+        {/* Brass Corners */}
         <div className="absolute top-2.5 left-2.5 w-8 h-8 border-t-2 border-l-2 border-amber-400 rounded-tl-xl pointer-events-none flex items-start justify-start p-1">
           <div className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]" />
         </div>
-        {/* Brass Corner 2: Top-Right */}
         <div className="absolute top-2.5 right-2.5 w-8 h-8 border-t-2 border-r-2 border-amber-400 rounded-tr-xl pointer-events-none flex items-start justify-end p-1">
           <div className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]" />
         </div>
-        {/* Brass Corner 3: Bottom-Left */}
         <div className="absolute bottom-2.5 left-2.5 w-8 h-8 border-b-2 border-l-2 border-amber-400 rounded-bl-xl pointer-events-none flex items-end justify-start p-1">
           <div className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]" />
         </div>
-        {/* Brass Corner 4: Bottom-Right */}
         <div className="absolute bottom-2.5 right-2.5 w-8 h-8 border-b-2 border-r-2 border-amber-400 rounded-br-xl pointer-events-none flex items-end justify-end p-1">
           <div className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]" />
         </div>
 
-        {/* Board Top Edge Rail with Direction & Zone Clarifications */}
+        {/* Board Top Edge Rail with Zone Indicators */}
         <div className="flex items-center justify-between px-4 pb-2 text-[11px] font-bold text-amber-200/90">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-stone-900/90 border border-amber-900/60 text-amber-300">
@@ -134,7 +132,7 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
                 {topRowLeft.map((pt) => renderPoint(pt, true))}
               </div>
 
-              {/* Bar Spacer */}
+              {/* Bar Spacer (Central Bar occupies this width) */}
               <div className="w-12 sm:w-16 md:w-18 h-full flex-shrink-0" />
 
               {/* Top Right Quad: Points 19 - 24 (Black's Home Board) */}
@@ -143,27 +141,25 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
               </div>
             </div>
 
-            {/* ON-BOARD 3D ANIMATED DICE ARENA (Center Surface) */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-              {/* Throw Dice button on board if rollable */}
+            {/* ON-BOARD 3D ANIMATED DICE ARENA - Located in Right Wing Open Lane (NOT Covering Bar) */}
+            <div className="absolute top-1/2 right-[12%] sm:right-[15%] md:right-[18%] -translate-y-1/2 z-20 pointer-events-auto flex flex-col items-center gap-2.5">
+              {/* Roll Dice Button right on the table */}
               {canRoll && (
-                <div className="pointer-events-auto">
-                  <button
-                    onClick={onRoll}
-                    disabled={isRolling}
-                    className="flex items-center gap-2.5 px-7 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black text-base tracking-wider shadow-[0_10px_25px_rgba(245,158,11,0.6)] hover:shadow-[0_12px_30px_rgba(245,158,11,0.8)] active:scale-95 transition-all duration-200 cursor-pointer animate-pulse border-2 border-amber-200"
-                  >
-                    <span className="text-xl">🎲</span>
-                    <span>ZAR AT</span>
-                  </button>
-                </div>
+                <button
+                  onClick={onRoll}
+                  disabled={isRolling}
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black text-sm tracking-wider shadow-[0_10px_25px_rgba(245,158,11,0.6)] hover:shadow-[0_12px_30px_rgba(245,158,11,0.8)] active:scale-95 transition-all duration-200 cursor-pointer animate-pulse border-2 border-amber-200"
+                >
+                  <Dices className={`w-5 h-5 ${isRolling ? 'animate-spin' : ''}`} />
+                  <span>ZAR AT</span>
+                </button>
               )}
 
               {/* Active Dice Tumble onto the Board */}
-              {(d1 > 0 || isRolling) && !canRoll && (
+              {(d1 > 0 || isRolling) && (
                 <div
-                  className={`pointer-events-auto flex items-center gap-5 p-3 rounded-2xl bg-stone-950/60 backdrop-blur-md border border-amber-600/40 shadow-2xl transition-all duration-300 ${
-                    isRolling ? 'scale-125 animate-bounce' : 'scale-105'
+                  className={`flex items-center gap-4 p-3 rounded-2xl bg-stone-950/80 backdrop-blur-md border-2 border-amber-600/50 shadow-2xl transition-all duration-300 ${
+                    isRolling ? 'scale-125 animate-pulse' : 'scale-105'
                   }`}
                 >
                   <DieFace value={d1 || 1} isRolling={isRolling} isUsed={d1Used} size="lg" />
@@ -171,6 +167,13 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Notice banner for Broken Checkers */}
+            {bar[currentTurn] > 0 && remainingMoves.length > 0 && (
+              <div className="absolute top-1/2 left-[18%] -translate-y-1/2 z-20 bg-amber-950/90 border-2 border-amber-400 text-amber-200 text-xs sm:text-sm font-black px-4 py-2 rounded-xl shadow-2xl backdrop-blur-md animate-pulse">
+                ⚠️ Kırık Taşınız Var: Tahtadaki yeşil haneye tıklayarak girin!
+              </div>
+            )}
 
             {/* BOTTOM ROW (Points 12 down to 1) */}
             <div className="flex-1 flex border-t-2 border-[#472511]">
@@ -188,8 +191,8 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
               </div>
             </div>
 
-            {/* FULL-HEIGHT ABSOLUTE CENTER BAR */}
-            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-auto z-20">
+            {/* FULL-HEIGHT ABSOLUTE CENTER BAR (Unblocked & Clickable) */}
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 flex items-center justify-center pointer-events-auto z-10">
               <TavlaBar
                 bar={bar}
                 selectedPoint={selectedPoint}
@@ -209,7 +212,7 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
           />
         </div>
 
-        {/* Board Bottom Edge Rail with Direction & Zone Clarifications */}
+        {/* Board Bottom Edge Rail with Zone Indicators */}
         <div className="flex items-center justify-between px-4 pt-2 text-[11px] font-bold text-amber-200/90">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-stone-900/90 border border-amber-900/60 text-amber-300">
