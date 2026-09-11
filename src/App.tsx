@@ -6,6 +6,7 @@ import { Connect4Game } from './components/games/Connect4Game';
 import { MemoryCardGame } from './components/games/MemoryCardGame';
 import { TicTacToeGame } from './components/games/TicTacToeGame';
 import { OkeyGame } from './components/okey/OkeyGame';
+import { TavlaGame } from './components/tavla/TavlaGame';
 import { GameOverModal } from './components/GameOverModal';
 import { ActiveView, PlayerScore } from './types';
 import { HelpCircle } from 'lucide-react';
@@ -17,7 +18,11 @@ export const App: React.FC = () => {
   const initialGameParam = urlParams.get('game');
 
   const [activeView, setActiveView] = useState<ActiveView>(
-    initialGameParam === 'okey' || initialRoom ? 'game_okey' : 'hub'
+    initialGameParam === 'okey' || initialRoom
+      ? 'game_okey'
+      : initialGameParam === 'tavla'
+      ? 'game_tavla'
+      : 'hub'
   );
   const [initialOkeyRoom] = useState<string>(initialRoom);
   const [player1Name] = useState('Player 1');
@@ -149,6 +154,11 @@ export const App: React.FC = () => {
             initialRoomCode={initialOkeyRoom}
             onBackToHub={handleBackToHub}
           />
+        )}
+
+        {/* 6. Otantik Tavla (Backgammon) */}
+        {activeView === 'game_tavla' && (
+          <TavlaGame onBackToHub={handleBackToHub} />
         )}
 
         {/* Hangman Game Over Modal */}

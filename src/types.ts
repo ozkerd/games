@@ -4,7 +4,8 @@ export type ActiveView =
   | 'game_connect4'
   | 'game_memory'
   | 'game_tictactoe'
-  | 'game_okey';
+  | 'game_okey'
+  | 'game_tavla';
 
 export type GameStage = 'setup' | 'playing' | 'gameover';
 

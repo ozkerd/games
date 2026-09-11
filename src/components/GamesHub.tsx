@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Gamepad2, Users, Sparkles, Trophy, Play, Flame, Brain, ShieldCheck, Circle, X } from 'lucide-react';
+import { Gamepad2, Users, Sparkles, Trophy, Play, Flame, Brain, ShieldCheck, Circle, X, Dices } from 'lucide-react';
 import { ActiveView } from '../types';
 
 interface GamesHubProps {
@@ -18,13 +18,13 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onSelectGame }) => {
 
         <div className="relative z-10 max-w-2xl space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-semibold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Arcade Games Portal
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Arcade & Board Games Portal
           </div>
           <h1 className="font-display text-4xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
             Play Instant Web Games Together 🎮
           </h1>
           <p className="text-slate-300 text-base sm:text-lg leading-relaxed">
-            Welcome to <strong className="text-white">Games</strong>! Play solo against smart AI opponents or compete with friends on the same keyboard.
+            Welcome to <strong className="text-white">Games</strong>! Play classic board games like <strong className="text-amber-400">Okey</strong> and <strong className="text-amber-400">Tavla</strong>, or enjoy retro arcade puzzles solo or with friends.
           </p>
         </div>
       </div>
@@ -33,14 +33,14 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onSelectGame }) => {
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div className="flex items-center gap-2">
           {[
-            { id: 'all', label: 'All 4 Games' },
-            { id: 'multiplayer', label: '1 & 2 Players' },
-            { id: 'puzzle', label: 'Strategy & Puzzle' },
+            { id: 'all', label: 'Tüm Oyunlar (6 Oyun)' },
+            { id: 'multiplayer', label: '1 & 2 Kişilik' },
+            { id: 'puzzle', label: 'Strateji & Zeka' },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setFilter(tab.id as any)}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
                 filter === tab.id
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
                   : 'bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-white hover:bg-slate-800'
@@ -51,7 +51,7 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onSelectGame }) => {
           ))}
         </div>
         <span className="text-xs text-emerald-400 font-mono flex items-center gap-1.5 font-bold">
-          <Flame className="w-4 h-4 fill-current" /> 5 Live Games Active
+          <Flame className="w-4 h-4 fill-current" /> 6 Canlı Oyun Aktif
         </span>
       </div>
 
@@ -102,13 +102,67 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onSelectGame }) => {
           <div className="pt-6 mt-6 border-t border-slate-800/80">
             <button
               onClick={() => onSelectGame('game_okey')}
-              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white font-display font-extrabold text-lg shadow-xl shadow-amber-600/30 flex items-center justify-center gap-3 group-hover:gap-4 transition-all"
+              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-600 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white font-display font-extrabold text-lg shadow-xl shadow-amber-600/30 flex items-center justify-center gap-3 group-hover:gap-4 transition-all cursor-pointer"
             >
               <Play className="w-5 h-5 fill-current" />
               Okey Oyna (Düz & 101)
             </button>
           </div>
         </div>
+
+        {/* Game: OTANTİK TAVLA (FEATURED NEW) */}
+        <div className="group relative bg-gradient-to-br from-[#3d2212]/50 via-slate-900 to-stone-900 border-2 border-amber-600/60 hover:border-amber-400 rounded-3xl p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-amber-600/25 flex flex-col justify-between md:col-span-2">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-600 via-amber-700 to-stone-900 text-amber-200 flex items-center justify-center font-bold text-3xl shadow-lg shadow-amber-700/30 group-hover:scale-110 transition-transform border border-amber-500/30">
+                🎲
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full bg-amber-600/20 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-wider animate-pulse">
+                  🔥 YENİ: OTANTİK TAVLA
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
+                Geleneksel Türk Tavlası • 3D Animasyonlu Zarlar • AI & 2 Kişilik
+              </span>
+              <h3 className="font-display text-3xl font-extrabold text-white mt-1">
+                Klasik Tavla (Backgammon)
+              </h3>
+              <p className="text-sm text-stone-300 mt-2 leading-relaxed max-w-3xl">
+                Genişletilmiş ceviz kaplama ve sedef kakmalı otantik tavla tahtası, 3D animasyonlu kemik zarlar, geleneksel Türkçe zar seslenişleri (Düşeş, Şeş-Beş, Dübara, Hep Yek), taş kırma, kapı alma, taş toplama ve Mars keyfi!
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-2">
+              <span className="inline-flex items-center gap-1 text-[11px] px-3 py-1 rounded-lg bg-stone-950 border border-stone-800 text-amber-300 font-semibold">
+                🎲 3D Zar Animasyonu & Sesler
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] px-3 py-1 rounded-lg bg-stone-950 border border-stone-800 text-stone-300">
+                <Brain className="w-3.5 h-3.5 text-purple-400" /> Akıllı AI Bot
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] px-3 py-1 rounded-lg bg-stone-950 border border-stone-800 text-stone-300">
+                <Users className="w-3.5 h-3.5 text-amber-400" /> 2 Kişilik Karşılıklı
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] px-3 py-1 rounded-lg bg-stone-950 border border-stone-800 text-emerald-400">
+                <Trophy className="w-3.5 h-3.5" /> Mars & Katmerli Mars
+              </span>
+            </div>
+          </div>
+
+          <div className="pt-6 mt-6 border-t border-stone-800/80">
+            <button
+              onClick={() => onSelectGame('game_tavla')}
+              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-950 font-display font-extrabold text-lg shadow-xl shadow-amber-600/30 flex items-center justify-center gap-3 group-hover:gap-4 transition-all cursor-pointer"
+            >
+              <Dices className="w-5 h-5" />
+              Tavla Oyna (Zar At!)
+            </button>
+          </div>
+        </div>
+
         {/* Game 1: Dual Hangman */}
         <div className="group relative bg-slate-900/90 border-2 border-indigo-500/40 hover:border-indigo-500 rounded-3xl p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/20 flex flex-col justify-between">
           <div className="space-y-4">
