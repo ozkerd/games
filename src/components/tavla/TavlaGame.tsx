@@ -1,6 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowLeft, RotateCcw, Volume2, VolumeX, Bot, Users, Trophy, Sparkles } from 'lucide-react';
-import { PlayerColor, TavlaGameState } from '../../games/tavla/types';
+import {
+  ArrowLeft,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+  Bot,
+  Users,
+  Trophy,
+  Sparkles,
+  Lightbulb,
+  CheckCircle2,
+} from 'lucide-react';
+import { PlayerColor, TavlaGameState, TavlaHint } from '../../games/tavla/types';
 import {
   createInitialGameState,
   getValidMovesForOrigin,
@@ -9,7 +20,7 @@ import {
   getDiceCallout,
   isOpponentHomeBoardFullyClosed,
 } from '../../games/tavla/engine';
-import { chooseBestAiMove } from '../../games/tavla/ai';
+import { chooseBestAiMove, getBestMoveHint } from '../../games/tavla/ai';
 import { tavlaAudio } from '../../games/tavla/audio';
 import { TavlaBoard } from './TavlaBoard';
 import { TavlaDice } from './TavlaDice';
@@ -23,33 +34,39 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     createInitialGameState('vs_ai')
   );
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [hintEnabled, setHintEnabled] = useState(true);
+  const [steppingPoint, setSteppingPoint] = useState<number | null>(null);
+
+  const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const turnTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clear timers on unmount
   useEffect(() => {
     return () => {
-      if (aiTimeoutRef.current) clearTimeout(aiTimeoutRef.current);
+      if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+      if (turnTransitionTimerRef.current) clearTimeout(turnTransitionTimerRef.current);
     };
   }, []);
 
-  // Pass turn to the other player
-  const passTurn = useCallback((prevState: TavlaGameState): TavlaGameState => {
+  // Strict Turn Passer - strictly toggles White <-> Black
+  const passTurnStrict = useCallback((prevState: TavlaGameState): TavlaGameState => {
     const nextTurn: PlayerColor = prevState.currentTurn === 'white' ? 'black' : 'white';
 
-    // Check if next player has broken checkers AND all 6 entry gates are completely closed by primes
-    let isFullyClosed = false;
-    let statusMsg = `Sıra ${nextTurn === 'white' ? 'Beyaz' : 'Siyah'} oyuncuda. Zar atın!`;
+    // Check if next player is completely locked with all 6 gates closed
+    const isFullyClosed =
+      prevState.bar[nextTurn] > 0 && isOpponentHomeBoardFullyClosed(prevState, nextTurn);
 
-    if (prevState.bar[nextTurn] > 0 && isOpponentHomeBoardFullyClosed(prevState, nextTurn)) {
-      isFullyClosed = true;
-      statusMsg = `${nextTurn === 'white' ? 'Beyaz' : 'Siyah'} oyuncunun giriş kapıları tamamen kapalı (6 kapı dolu). Tahtaya girilemediği için sıra rakipte.`;
-    }
+    const statusMsg = isFullyClosed
+      ? `${nextTurn === 'white' ? 'Beyaz' : 'Siyah'} oyuncunun giriş kapıları tamamen kapalı (6 kapı dolu). Sıra tekrar geçiyor.`
+      : `Sıra ${nextTurn === 'white' ? 'Beyaz (Siz)' : 'Siyah'} oyuncuda. Zar atın!`;
 
     const nextState: TavlaGameState = {
       ...prevState,
       currentTurn: nextTurn,
+      turnPhase: isFullyClosed ? 'turn_ended' : 'need_roll',
       selectedPoint: null,
       validDestinations: [],
+      activeHint: null,
       diceState: {
         dice: [0, 0],
         remainingMoves: [],
@@ -62,23 +79,26 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     };
 
     if (isFullyClosed) {
-      setTimeout(() => {
-        setGameState((s) => passTurn(s));
-      }, 2000);
+      turnTransitionTimerRef.current = setTimeout(() => {
+        setGameState((s) => passTurnStrict(s));
+      }, 1800);
     }
 
     return nextState;
   }, []);
 
-  // Roll dice action
+  // Roll Dice Action
   const handleRollDice = useCallback(() => {
+    if (gameState.turnPhase !== 'need_roll' && gameState.turnPhase !== 'moving') return;
     if (gameState.diceState.isRolling || gameState.diceState.remainingMoves.length > 0) return;
     if (gameState.winner) return;
 
     if (soundEnabled) tavlaAudio.playDiceRoll();
 
+    // Set to rolling phase
     setGameState((prev) => ({
       ...prev,
+      turnPhase: 'rolling',
       diceState: {
         ...prev.diceState,
         isRolling: true,
@@ -97,6 +117,7 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
       setGameState((prev) => {
         const testState: TavlaGameState = {
           ...prev,
+          turnPhase: 'moving',
           diceState: {
             dice: [d1, d2],
             remainingMoves: moves,
@@ -113,16 +134,18 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
           testState.validDestinations = Array.from(new Set(barMoves.map((m) => m.to)));
         }
 
-        // Check if any legal move is possible
+        // Check if legal moves exist
         const legal = getAllLegalMoves(testState, testState.currentTurn);
         if (legal.length === 0) {
+          testState.turnPhase = 'turn_ended';
           if (testState.bar[testState.currentTurn] > 0) {
-            testState.statusMessage = `Zarlar (${d1} - ${d2}) kapalı kapılara denk geldi! Kırık taş girilemedi, sıra rakibe geçiyor.`;
+            testState.statusMessage = `Zarlar (${d1} - ${d2}) kapalı kapılara denk geldi! Tahtaya girilemedi, sıra rakibe geçiyor.`;
           } else {
             testState.statusMessage = `Gelen zarlarla (${d1} - ${d2}) oynanacak geçerli hamle yok! Sıra geçiyor.`;
           }
-          setTimeout(() => {
-            setGameState((s) => passTurn(s));
+
+          turnTransitionTimerRef.current = setTimeout(() => {
+            setGameState((s) => passTurnStrict(s));
           }, 1800);
         } else if (testState.bar[testState.currentTurn] > 0) {
           testState.statusMessage = 'Kırık taşınız için tahtadaki yeşil haneye tıklayarak girin!';
@@ -132,16 +155,16 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
 
         return testState;
       });
-    }, 800);
-  }, [gameState.diceState.isRolling, gameState.diceState.remainingMoves.length, gameState.winner, soundEnabled, passTurn]);
+    }, 850);
+  }, [gameState.turnPhase, gameState.diceState.isRolling, gameState.diceState.remainingMoves.length, gameState.winner, soundEnabled, passTurnStrict]);
 
   // Handle selecting a point (or the bar)
   const handleSelectPoint = (from: number | 'bar') => {
-    if (gameState.winner) return;
+    if (gameState.winner || gameState.turnPhase !== 'moving') return;
     if (gameState.diceState.remainingMoves.length === 0) return;
     if (gameState.gameMode === 'vs_ai' && gameState.currentTurn === 'black') return;
 
-    // Check if clicked already selected point -> deselect (unless bar is forced)
+    // Deselect if already selected (unless bar is forced)
     if (gameState.selectedPoint === from && gameState.bar[gameState.currentTurn] === 0) {
       setGameState((prev) => ({
         ...prev,
@@ -163,19 +186,39 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     }));
   };
 
-  // Handle moving to a destination
-  const handleMoveTo = (target: number | 'off') => {
-    if (!gameState.selectedPoint) return;
-    const origin = gameState.selectedPoint;
-
-    const possibleMoves = getValidMovesForOrigin(gameState, gameState.currentTurn, origin);
-    const chosenMove = possibleMoves.find((m) => m.to === target);
+  // Step-by-Step Animated Move Execution
+  const executeAnimatedMove = useCallback((from: number | 'bar', to: number | 'off', onComplete?: () => void) => {
+    const possibleMoves = getValidMovesForOrigin(gameState, gameState.currentTurn, from);
+    const chosenMove = possibleMoves.find((m) => m.to === to);
     if (!chosenMove) return;
 
-    const nextState = applyMove(gameState, origin, target, chosenMove.diceUsed);
+    // Animate stepping across intermediate points
+    if (typeof from === 'number' && typeof to === 'number') {
+      const step = from < to ? 1 : -1;
+      let current = from + step;
+      const stepInterval = setInterval(() => {
+        if ((step > 0 && current <= to) || (step < 0 && current >= to)) {
+          setSteppingPoint(current);
+          if (soundEnabled) tavlaAudio.playCheckerMove();
+          current += step;
+        } else {
+          clearInterval(stepInterval);
+          setSteppingPoint(null);
+          finalizeMove(from, to, chosenMove.diceUsed, chosenMove.isHit);
+          if (onComplete) onComplete();
+        }
+      }, 55);
+    } else {
+      finalizeMove(from, to, chosenMove.diceUsed, chosenMove.isHit);
+      if (onComplete) onComplete();
+    }
+  }, [gameState, soundEnabled]);
+
+  const finalizeMove = (from: number | 'bar', to: number | 'off', diceUsed: number, isHit?: boolean) => {
+    const nextState = applyMove(gameState, from, to, diceUsed);
 
     if (soundEnabled) {
-      if (chosenMove.isHit) {
+      if (isHit) {
         tavlaAudio.playHitSound();
       } else {
         tavlaAudio.playCheckerMove();
@@ -184,46 +227,52 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
 
     if (nextState.winner) {
       if (soundEnabled) tavlaAudio.playVictoryFanfare();
-      setGameState(nextState);
+      setGameState({ ...nextState, turnPhase: 'game_over' });
       return;
     }
 
-    // Check remaining broken checkers on bar
+    // Still has broken checker on bar?
     if (nextState.bar[nextState.currentTurn] > 0) {
       const remainingBarMoves = getValidMovesForOrigin(nextState, nextState.currentTurn, 'bar');
       nextState.selectedPoint = 'bar';
       nextState.validDestinations = Array.from(new Set(remainingBarMoves.map((m) => m.to)));
 
       if (remainingBarMoves.length === 0 && nextState.diceState.remainingMoves.length > 0) {
+        nextState.turnPhase = 'turn_ended';
         nextState.statusMessage = 'Kalan zarla girilebilecek açık kapı yok. Sıra rakibe geçiyor.';
         setGameState(nextState);
-        setTimeout(() => {
-          setGameState((prev) => passTurn(prev));
-        }, 1500);
+        turnTransitionTimerRef.current = setTimeout(() => {
+          setGameState((prev) => passTurnStrict(prev));
+        }, 1400);
         return;
       }
     }
 
-    // Check if remaining moves have any legal move left
+    // Turn complete or moves exhausted?
     if (nextState.diceState.remainingMoves.length === 0) {
-      // Turn complete! Switch player
-      setTimeout(() => {
-        setGameState((prev) => passTurn(prev));
-      }, 500);
+      nextState.turnPhase = 'turn_ended';
       setGameState(nextState);
+      turnTransitionTimerRef.current = setTimeout(() => {
+        setGameState((prev) => passTurnStrict(prev));
+      }, 500);
     } else {
       const remainingLegal = getAllLegalMoves(nextState, nextState.currentTurn);
       if (remainingLegal.length === 0) {
-        // Has unused dice but nowhere to move
+        nextState.turnPhase = 'turn_ended';
         nextState.statusMessage = 'Kalan zarla oynanabilecek hamle kalmadı. Sıra geçiyor.';
         setGameState(nextState);
-        setTimeout(() => {
-          setGameState((prev) => passTurn(prev));
-        }, 1400);
+        turnTransitionTimerRef.current = setTimeout(() => {
+          setGameState((prev) => passTurnStrict(prev));
+        }, 1300);
       } else {
         setGameState(nextState);
       }
     }
+  };
+
+  const handleMoveTo = (target: number | 'off') => {
+    if (!gameState.selectedPoint) return;
+    executeAnimatedMove(gameState.selectedPoint, target);
   };
 
   // AI Turn Execution Effect
@@ -232,86 +281,70 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     if (gameState.currentTurn !== 'black') return;
     if (gameState.winner) return;
 
-    // AI needs to roll first
-    if (gameState.diceState.remainingMoves.length === 0 && !gameState.diceState.isRolling) {
-      aiTimeoutRef.current = setTimeout(() => {
+    // AI rolls when in need_roll phase
+    if (gameState.turnPhase === 'need_roll') {
+      aiTimerRef.current = setTimeout(() => {
         handleRollDice();
-      }, 800);
+      }, 700);
       return;
     }
 
-    // AI has dice to play
+    // AI plays moves step-by-step when in moving phase
     if (
+      gameState.turnPhase === 'moving' &&
       gameState.diceState.remainingMoves.length > 0 &&
-      !gameState.diceState.isRolling &&
       !gameState.isAiThinking
     ) {
       setGameState((prev) => ({ ...prev, isAiThinking: true }));
 
-      aiTimeoutRef.current = setTimeout(() => {
+      aiTimerRef.current = setTimeout(() => {
         const bestMove = chooseBestAiMove(gameState);
         if (bestMove) {
-          const nextState = applyMove(
-            gameState,
-            bestMove.from,
-            bestMove.to,
-            bestMove.diceUsed
-          );
-
-          if (soundEnabled) {
-            if (bestMove.isHit) {
-              tavlaAudio.playHitSound();
-            } else {
-              tavlaAudio.playCheckerMove();
-            }
-          }
-
-          if (nextState.winner) {
-            if (soundEnabled) tavlaAudio.playVictoryFanfare();
-            setGameState(nextState);
-            return;
-          }
-
-          if (nextState.diceState.remainingMoves.length === 0) {
-            setTimeout(() => {
-              setGameState((prev) => passTurn(prev));
-            }, 600);
-            setGameState({ ...nextState, isAiThinking: false });
-          } else {
-            const nextLegal = getAllLegalMoves(nextState, 'black');
-            if (nextLegal.length === 0) {
-              nextState.statusMessage = 'Bilgisayar kalan zarla oynayamıyor. Sıra size geçiyor.';
-              setGameState({ ...nextState, isAiThinking: false });
-              setTimeout(() => {
-                setGameState((prev) => passTurn(prev));
-              }, 1200);
-            } else {
-              setGameState({ ...nextState, isAiThinking: false });
-            }
-          }
+          executeAnimatedMove(bestMove.from, bestMove.to, () => {
+            setGameState((s) => ({ ...s, isAiThinking: false }));
+          });
         } else {
-          // No moves possible for AI
-          setGameState((prev) => passTurn(prev));
+          setGameState((prev) => passTurnStrict(prev));
         }
-      }, 900);
+      }, 850);
     }
   }, [
-    gameState,
+    gameState.turnPhase,
+    gameState.currentTurn,
+    gameState.gameMode,
+    gameState.winner,
+    gameState.diceState.remainingMoves.length,
+    gameState.isAiThinking,
     handleRollDice,
-    passTurn,
-    soundEnabled,
+    executeAnimatedMove,
+    passTurnStrict,
   ]);
 
+  // Compute Visual Hint for Player 1 (White)
+  const currentHint: TavlaHint | null =
+    hintEnabled && gameState.currentTurn === 'white' && gameState.turnPhase === 'moving'
+      ? getBestMoveHint(gameState)
+      : null;
+
+  const handlePlayHint = () => {
+    if (!currentHint) return;
+    executeAnimatedMove(currentHint.from, currentHint.to);
+  };
+
   const handleRestartGame = () => {
+    if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+    if (turnTransitionTimerRef.current) clearTimeout(turnTransitionTimerRef.current);
     setGameState(createInitialGameState(gameState.gameMode));
   };
 
   const handleToggleMode = (mode: 'vs_ai' | 'vs_player') => {
+    if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+    if (turnTransitionTimerRef.current) clearTimeout(turnTransitionTimerRef.current);
     setGameState(createInitialGameState(mode));
   };
 
   const canCurrentPlayerRoll =
-    gameState.diceState.remainingMoves.length === 0 &&
+    gameState.turnPhase === 'need_roll' &&
     !gameState.diceState.isRolling &&
     !gameState.winner &&
     (gameState.gameMode === 'vs_player' || gameState.currentTurn === 'white');
@@ -319,7 +352,7 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
   return (
     <div className="min-h-screen py-6 px-3 sm:px-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#2a170b] via-[#1a0c05] to-[#0d0603] text-stone-100 flex flex-col items-center justify-between">
       {/* Top Header Controls Bar */}
-      <div className="w-full max-w-7xl flex flex-wrap items-center justify-between gap-4 mb-4 bg-stone-900/80 border border-amber-950/70 p-4 rounded-2xl shadow-xl backdrop-blur-md">
+      <div className="w-full max-w-7xl flex flex-wrap items-center justify-between gap-4 mb-3 bg-stone-900/80 border border-amber-950/70 p-4 rounded-2xl shadow-xl backdrop-blur-md">
         <div className="flex items-center gap-3">
           <button
             onClick={onBackToHub}
@@ -333,13 +366,27 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
               🎲 Otantik Tavla <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">Klasik</span>
             </h2>
             <p className="text-xs text-stone-400">
-              {gameState.gameMode === 'vs_ai' ? '🤖 Bilgisayara Karşı' : '👥 2 Kişilik'}
+              {gameState.gameMode === 'vs_ai' ? '🤖 Bilgisayara Karşı' : '👥 2 Kişilik Mod'}
             </p>
           </div>
         </div>
 
-        {/* Mode Switch & Actions */}
+        {/* Mode Switch, Hint Toggle & Controls */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Hint Toggle Button (Açık / Kapalı) */}
+          <button
+            onClick={() => setHintEnabled(!hintEnabled)}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition-all border cursor-pointer ${
+              hintEnabled
+                ? 'bg-amber-500/20 text-amber-300 border-amber-400/60 shadow-lg shadow-amber-500/20'
+                : 'bg-stone-800 text-stone-400 border-stone-700 hover:text-white'
+            }`}
+            title="En iyi hamle ipucunu aç veya kapat"
+          >
+            <Lightbulb className={`w-4 h-4 ${hintEnabled ? 'text-amber-400 fill-amber-400/40' : 'text-stone-500'}`} />
+            <span>İpucu: {hintEnabled ? 'Açık' : 'Kapalı'}</span>
+          </button>
+
           <div className="flex items-center bg-stone-950 p-1 rounded-xl border border-stone-800">
             <button
               onClick={() => handleToggleMode('vs_ai')}
@@ -381,12 +428,12 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
       </div>
 
       {/* High-Contrast Player & Movement Direction Guide */}
-      <div className="w-full max-w-7xl grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+      <div className="w-full max-w-7xl grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
         {/* White Player Guide Card */}
         <div
           className={`p-3 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between ${
             gameState.currentTurn === 'white'
-              ? 'bg-amber-950/40 border-amber-400 shadow-lg shadow-amber-500/20 ring-2 ring-amber-400/50'
+              ? 'bg-amber-950/50 border-amber-400 shadow-xl shadow-amber-500/20 ring-2 ring-amber-400/50'
               : 'bg-stone-900/60 border-stone-800 opacity-70'
           }`}
         >
@@ -406,7 +453,7 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
                 )}
               </div>
               <div className="text-xs text-stone-300 flex items-center gap-2 mt-0.5">
-                <span>Yön: <strong className="text-white">24 ➔ 1</strong> (Saat yönünün tersi)</span>
+                <span>Yön: <strong className="text-white">24 ➔ 1</strong></span>
                 <span>•</span>
                 <span className="text-emerald-400 font-bold">Toplama: Sağ Alt (1-6)</span>
               </div>
@@ -424,7 +471,7 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
         <div
           className={`p-3 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between ${
             gameState.currentTurn === 'black'
-              ? 'bg-amber-950/40 border-amber-400 shadow-lg shadow-amber-500/20 ring-2 ring-amber-400/50'
+              ? 'bg-amber-950/50 border-amber-400 shadow-xl shadow-amber-500/20 ring-2 ring-amber-400/50'
               : 'bg-stone-900/60 border-stone-800 opacity-70'
           }`}
         >
@@ -444,7 +491,7 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
                 )}
               </div>
               <div className="text-xs text-stone-300 flex items-center gap-2 mt-0.5">
-                <span>Yön: <strong className="text-white">1 ➔ 24</strong> (Saat yönü)</span>
+                <span>Yön: <strong className="text-white">1 ➔ 24</strong></span>
                 <span>•</span>
                 <span className="text-emerald-400 font-bold">Toplama: Sağ Üst (19-24)</span>
               </div>
@@ -459,6 +506,41 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
         </div>
       </div>
 
+      {/* Visual Hint Recommendation Floating Banner (If Hint Enabled & Available) */}
+      {currentHint && (
+        <div className="w-full max-w-7xl mb-2 bg-gradient-to-r from-amber-500/20 via-amber-950/60 to-amber-500/20 border-2 border-amber-400 rounded-2xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl backdrop-blur-md animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center font-black shadow-md flex-shrink-0">
+              <Lightbulb className="w-5 h-5 fill-current" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-amber-300 uppercase tracking-wide">
+                  💡 EN İYİ HAMLE ÖNERİSİ
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400 text-stone-950 font-black">
+                  Zar: {currentHint.diceUsed}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm font-semibold text-stone-200 mt-0.5">
+                <strong className="text-amber-300">
+                  {currentHint.from === 'bar' ? 'Bardan' : `${currentHint.from}. haneden`}{' '}
+                  ➔ {currentHint.to === 'off' ? 'Toplamaya' : `${currentHint.to}. haneye`}
+                </strong>{' '}
+                oynayın — <span className="text-amber-200">{currentHint.reason}</span>
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handlePlayHint}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-stone-950 font-black text-xs shadow-lg active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+          >
+            <CheckCircle2 className="w-4 h-4" /> Bu Hamleyi Oyna
+          </button>
+        </div>
+      )}
+
       {/* Expansive Authentic Tavla Board */}
       <div className="w-full flex-1 flex flex-col justify-center items-center my-1">
         <TavlaBoard
@@ -468,6 +550,8 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
           currentTurn={gameState.currentTurn}
           selectedPoint={gameState.selectedPoint}
           validDestinations={gameState.validDestinations}
+          activeHint={currentHint}
+          steppingPoint={steppingPoint}
           dice={gameState.diceState.dice}
           remainingMoves={gameState.diceState.remainingMoves}
           isRolling={gameState.diceState.isRolling}
@@ -479,7 +563,7 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
       </div>
 
       {/* Bottom Dice Control & Status Bar */}
-      <div className="w-full max-w-7xl mt-4">
+      <div className="w-full max-w-7xl mt-3">
         <TavlaDice
           dice={gameState.diceState.dice}
           remainingMoves={gameState.diceState.remainingMoves}
@@ -493,7 +577,7 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
         {/* AI Thinking Notice */}
         {gameState.isAiThinking && (
           <div className="mt-2 flex items-center justify-center gap-2 text-xs font-bold text-amber-400 animate-pulse">
-            <Sparkles className="w-3.5 h-3.5 animate-spin" /> Bilgisayar hamlesini düşünüyor...
+            <Sparkles className="w-3.5 h-3.5 animate-spin" /> Bilgisayar taşını düşünüp oynuyor...
           </div>
         )}
       </div>

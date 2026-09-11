@@ -1,12 +1,16 @@
 import React from 'react';
 import { BoardPoint, PlayerColor } from '../../games/tavla/types';
 import { TavlaChecker } from './TavlaChecker';
+import { Sparkles } from 'lucide-react';
 
 interface TavlaPointProps {
   point: BoardPoint;
   isTopRow: boolean; // Top row triangles point DOWN, bottom row triangles point UP
   isSelected: boolean;
   isValidDestination: boolean;
+  isHintOrigin?: boolean;
+  isHintTarget?: boolean;
+  isStepping?: boolean;
   canSelect: boolean;
   onSelect: (pointIndex: number) => void;
   onMoveTo: (pointIndex: number) => void;
@@ -17,6 +21,9 @@ export const TavlaPoint: React.FC<TavlaPointProps> = ({
   isTopRow,
   isSelected,
   isValidDestination,
+  isHintOrigin = false,
+  isHintTarget = false,
+  isStepping = false,
   canSelect,
   onSelect,
   onMoveTo,
@@ -44,8 +51,12 @@ export const TavlaPoint: React.FC<TavlaPointProps> = ({
     <div
       onClick={handleClick}
       className={`relative flex-1 h-full min-w-[38px] sm:min-w-[48px] md:min-w-[58px] cursor-pointer group select-none transition-all duration-150 ${
-        isValidDestination
-          ? 'bg-emerald-500/20 ring-2 ring-emerald-400 ring-inset shadow-[0_0_15px_rgba(52,211,153,0.4)]'
+        isHintTarget
+          ? 'bg-amber-400/30 ring-3 ring-amber-400 ring-inset shadow-[0_0_20px_rgba(251,191,36,0.6)]'
+          : isValidDestination
+          ? 'bg-emerald-500/25 ring-2 ring-emerald-400 ring-inset shadow-[0_0_15px_rgba(52,211,153,0.4)]'
+          : isHintOrigin
+          ? 'bg-amber-400/20 ring-2 ring-amber-300 ring-inset'
           : isSelected
           ? 'bg-amber-400/25 ring-2 ring-amber-400 ring-inset'
           : 'hover:bg-amber-400/5'
@@ -93,12 +104,14 @@ export const TavlaPoint: React.FC<TavlaPointProps> = ({
         />
       </svg>
 
-      {/* Point Coordinate Number Badge - Placed at the Triangle Tip near the Center */}
+      {/* Point Coordinate Number Badge */}
       <div
         className={`absolute z-20 left-1/2 -translate-x-1/2 text-[10px] sm:text-xs font-mono font-black px-1.5 py-0.5 rounded-full shadow-md backdrop-blur-sm pointer-events-none ${
           isTopRow ? 'bottom-2' : 'top-2'
         } ${
-          isSelected
+          isHintTarget
+            ? 'bg-amber-400 text-stone-950 ring-2 ring-amber-300 scale-125 font-black shadow-lg shadow-amber-500/50'
+            : isSelected
             ? 'bg-amber-400 text-stone-950 ring-2 ring-amber-500 scale-110'
             : isValidDestination
             ? 'bg-emerald-400 text-stone-950 ring-2 ring-emerald-500 animate-pulse'
@@ -110,8 +123,20 @@ export const TavlaPoint: React.FC<TavlaPointProps> = ({
         {point.index}
       </div>
 
+      {/* Hint Target Visual Highlight Badge */}
+      {isHintTarget && (
+        <div
+          className={`absolute z-30 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400 text-stone-950 text-[10px] font-black shadow-xl animate-bounce border-2 border-white ${
+            isTopRow ? 'top-14' : 'bottom-14'
+          }`}
+        >
+          <Sparkles className="w-3 h-3 fill-current" />
+          <span>HEDEF</span>
+        </div>
+      )}
+
       {/* Valid Destination Indicator Glow / Target */}
-      {isValidDestination && (
+      {isValidDestination && !isHintTarget && (
         <div
           className={`absolute z-30 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full border-2 border-emerald-400 bg-emerald-500/40 flex items-center justify-center animate-bounce shadow-lg shadow-emerald-500/50 ${
             isTopRow ? 'top-16' : 'bottom-16'
@@ -119,6 +144,15 @@ export const TavlaPoint: React.FC<TavlaPointProps> = ({
         >
           <div className="w-3 h-3 rounded-full bg-emerald-300 shadow-[0_0_10px_#6ee7b7]" />
         </div>
+      )}
+
+      {/* Step-by-Step Moving Checker Gliding Indicator */}
+      {isStepping && (
+        <div
+          className={`absolute z-40 left-1/2 -translate-x-1/2 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-amber-300/90 border-2 border-amber-400 shadow-[0_0_20px_#f59e0b] animate-ping pointer-events-none ${
+            isTopRow ? 'top-8' : 'bottom-8'
+          }`}
+        />
       )}
 
       {/* Checkers Stack - FLUSH to Top Rail or Bottom Rail */}
@@ -137,7 +171,7 @@ export const TavlaPoint: React.FC<TavlaPointProps> = ({
             <TavlaChecker
               key={idx}
               color={col}
-              isSelected={isSelected && isTopMost}
+              isSelected={(isSelected || isHintOrigin) && isTopMost}
               isMovable={canSelect && isTopMost}
               countBadge={showBadge}
               onClick={handleClick}

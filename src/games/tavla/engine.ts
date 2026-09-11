@@ -68,6 +68,7 @@ export function createInitialGameState(gameMode: 'vs_ai' | 'vs_player' = 'vs_ai'
     bar: { white: 0, black: 0 },
     borneOff: { white: 0, black: 0 },
     currentTurn: 'white',
+    turnPhase: 'need_roll',
     gameMode,
     diceState: {
       dice: [0, 0],
@@ -78,6 +79,7 @@ export function createInitialGameState(gameMode: 'vs_ai' | 'vs_player' = 'vs_ai'
     },
     selectedPoint: null,
     validDestinations: [],
+    activeHint: null,
     moveHistory: [],
     winner: null,
     winType: null,
