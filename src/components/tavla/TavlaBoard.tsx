@@ -152,10 +152,10 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
               </div>
             </div>
 
-            {/* ON-BOARD 3D ANIMATED DICE ARENA - Located in Right Wing Open Lane */}
-            <div className="absolute top-1/2 right-[10%] sm:right-[14%] md:right-[17%] -translate-y-1/2 z-20 pointer-events-auto flex flex-col items-center gap-2.5">
+            {/* ON-BOARD ANIMATED DICE ARENA - Fixed size to eliminate any layout shift / screen jumping */}
+            <div className="absolute top-1/2 right-[8%] sm:right-[12%] md:right-[15%] -translate-y-1/2 z-20 pointer-events-auto w-48 sm:w-56 h-28 flex items-center justify-center">
               {/* Roll Dice Button right on the table */}
-              {canRoll && (
+              {canRoll ? (
                 <button
                   onClick={onRoll}
                   disabled={isRolling}
@@ -164,15 +164,12 @@ export const TavlaBoard: React.FC<TavlaBoardProps> = ({
                   <Dices className={`w-5 h-5 ${isRolling ? 'animate-spin' : ''}`} />
                   <span>ZAR AT</span>
                 </button>
-              )}
-
-              {/* Active Realistic 3D Rolling Dice on Board */}
-              {(d1 > 0 || isRolling) && (
-                <div className="flex items-center gap-7 py-2 px-3 pointer-events-none transition-all duration-300">
+              ) : (d1 > 0 || isRolling) ? (
+                <div className="flex items-center gap-6 py-2 px-3 pointer-events-none transition-all duration-300">
                   <RealisticDie value={d1 || 1} isRolling={isRolling} isUsed={d1Used} dieIndex={1} size={52} />
                   <RealisticDie value={d2 || 1} isRolling={isRolling} isUsed={d2Used} dieIndex={2} size={52} />
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Notice for Broken Checkers */}

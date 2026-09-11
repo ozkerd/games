@@ -40,6 +40,9 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
 
   const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const turnTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isRollingRef = useRef(false);
+  const isMovingRef = useRef(false);
+  const isTurnTransitioningRef = useRef(false);
 
   // Clear timers on unmount
   useEffect(() => {
@@ -49,8 +52,10 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     };
   }, []);
 
-  // Strict Turn Passer - strictly toggles White <-> Black
+  // Strict Turn Passer - strictly alternates White <-> Black with zero double-triggers
   const passTurnStrict = useCallback((prevState: TavlaGameState): TavlaGameState => {
+    if (prevState.winner) return prevState;
+
     const nextTurn: PlayerColor = prevState.currentTurn === 'white' ? 'black' : 'white';
 
     // Check if next player is completely locked with all 6 gates closed
@@ -60,6 +65,11 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     const statusMsg = isFullyClosed
       ? `${nextTurn === 'white' ? 'Beyaz' : 'Siyah'} oyuncunun giriş kapıları tamamen kapalı (6 kapı dolu). Sıra tekrar geçiyor.`
       : `Sıra ${nextTurn === 'white' ? 'Beyaz (Siz)' : 'Siyah'} oyuncuda. Zar atın!`;
+
+    // Clear concurrency lock flags
+    isRollingRef.current = false;
+    isMovingRef.current = false;
+    isTurnTransitioningRef.current = false;
 
     const nextState: TavlaGameState = {
       ...prevState,
@@ -80,6 +90,7 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     };
 
     if (isFullyClosed) {
+      if (turnTransitionTimerRef.current) clearTimeout(turnTransitionTimerRef.current);
       turnTransitionTimerRef.current = setTimeout(() => {
         setGameState((s) => passTurnStrict(s));
       }, 1800);
@@ -88,22 +99,147 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     return nextState;
   }, []);
 
-  // Roll Dice Action
+  // Debounced, collision-free single turn transition scheduler
+  const scheduleTurnPass = useCallback((delay: number) => {
+    if (turnTransitionTimerRef.current) {
+      clearTimeout(turnTransitionTimerRef.current);
+    }
+    isTurnTransitioningRef.current = true;
+    turnTransitionTimerRef.current = setTimeout(() => {
+      isTurnTransitioningRef.current = false;
+      setGameState((prev) => passTurnStrict(prev));
+    }, delay);
+  }, [passTurnStrict]);
+
+  // Finalize Move: update state and evaluate turn completion
+  const finalizeMove = useCallback((from: number | 'bar', to: number | 'off', diceUsed: number, isHit?: boolean) => {
+    setGameState((currentGameState) => {
+      const nextState = applyMove(currentGameState, from, to, diceUsed);
+
+      if (soundEnabled) {
+        if (isHit) {
+          tavlaAudio.playHitSound();
+        } else {
+          tavlaAudio.playCheckerMove();
+        }
+      }
+
+      if (nextState.winner) {
+        if (soundEnabled) tavlaAudio.playVictoryFanfare();
+        return { ...nextState, turnPhase: 'game_over' };
+      }
+
+      // Still has broken checker on bar?
+      if (nextState.bar[nextState.currentTurn] > 0) {
+        const remainingBarMoves = getValidMovesForOrigin(nextState, nextState.currentTurn, 'bar');
+        nextState.selectedPoint = 'bar';
+        nextState.validDestinations = Array.from(new Set(remainingBarMoves.map((m) => m.to)));
+
+        if (remainingBarMoves.length === 0 && nextState.diceState.remainingMoves.length > 0) {
+          nextState.turnPhase = 'turn_ended';
+          nextState.statusMessage = 'Kalan zarla girilebilecek açık kapı yok. Sıra rakibe geçiyor.';
+          scheduleTurnPass(1400);
+          return nextState;
+        }
+      }
+
+      // Turn complete or moves exhausted?
+      if (nextState.diceState.remainingMoves.length === 0) {
+        nextState.turnPhase = 'turn_ended';
+        scheduleTurnPass(500);
+      } else {
+        const remainingLegal = getAllLegalMoves(nextState, nextState.currentTurn);
+        if (remainingLegal.length === 0) {
+          nextState.turnPhase = 'turn_ended';
+          nextState.statusMessage = 'Kalan zarla oynanabilecek hamle kalmadı. Sıra geçiyor.';
+          scheduleTurnPass(1200);
+        }
+      }
+
+      return nextState;
+    });
+  }, [soundEnabled, scheduleTurnPass]);
+
+  // Step-by-Step Animated Move Execution (Guarded against duplicate / overlapping moves)
+  const executeAnimatedMove = useCallback((from: number | 'bar', to: number | 'off', onComplete?: () => void) => {
+    if (isMovingRef.current) return;
+    isMovingRef.current = true;
+
+    const possibleMoves = getValidMovesForOrigin(gameState, gameState.currentTurn, from);
+    const chosenMove = possibleMoves.find((m) => m.to === to);
+    if (!chosenMove) {
+      isMovingRef.current = false;
+      return;
+    }
+
+    const finish = () => {
+      isMovingRef.current = false;
+      finalizeMove(from, to, chosenMove.diceUsed, chosenMove.isHit);
+      if (onComplete) onComplete();
+    };
+
+    // Moving from Bar to Point on Board
+    if (from === 'bar' && typeof to === 'number') {
+      setSteppingPoint(to);
+      if (soundEnabled) tavlaAudio.playCheckerMove();
+      setTimeout(() => {
+        setSteppingPoint(null);
+        finish();
+      }, 280);
+      return;
+    }
+
+    // Moving to Bear-Off Tray
+    if (typeof from === 'number' && to === 'off') {
+      setSteppingPoint(from);
+      if (soundEnabled) tavlaAudio.playCheckerMove();
+      setTimeout(() => {
+        setSteppingPoint(null);
+        finish();
+      }, 280);
+      return;
+    }
+
+    // Standard Point to Point: Animate stepping across intermediate points (220ms per hop)
+    if (typeof from === 'number' && typeof to === 'number') {
+      const step = from < to ? 1 : -1;
+      let current = from + step;
+      const stepInterval = setInterval(() => {
+        if ((step > 0 && current <= to) || (step < 0 && current >= to)) {
+          setSteppingPoint(current);
+          if (soundEnabled) tavlaAudio.playCheckerMove();
+          current += step;
+        } else {
+          clearInterval(stepInterval);
+          setSteppingPoint(null);
+          finish();
+        }
+      }, 220);
+    } else {
+      finish();
+    }
+  }, [gameState, soundEnabled, finalizeMove]);
+
+  // Roll Dice Action - Strictly guarded so players cannot roll twice in a single turn
   const handleRollDice = useCallback(() => {
-    if (gameState.turnPhase !== 'need_roll' && gameState.turnPhase !== 'moving') return;
-    if (gameState.diceState.isRolling || gameState.diceState.remainingMoves.length > 0) return;
+    if (isRollingRef.current || isTurnTransitioningRef.current) return;
+    if (gameState.turnPhase !== 'need_roll') return;
+    if (gameState.diceState.remainingMoves.length > 0 || gameState.diceState.isRolling) return;
     if (gameState.winner) return;
+
+    isRollingRef.current = true;
+    if (turnTransitionTimerRef.current) clearTimeout(turnTransitionTimerRef.current);
 
     if (soundEnabled) tavlaAudio.playDiceRoll();
 
-    // Set to rolling phase
+    // Set to rolling phase immediately
     setGameState((prev) => ({
       ...prev,
       turnPhase: 'rolling',
       diceState: {
         ...prev.diceState,
         isRolling: true,
-        rollCallout: 'Zarlar yuvarlanıyor...',
+        rollCallout: 'Zarlar atılıyor...',
       },
     }));
 
@@ -114,6 +250,7 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
       const moves = d1 === d2 ? [d1, d1, d1, d1] : [d1, d2];
 
       if (soundEnabled) tavlaAudio.playCheckerMove();
+      isRollingRef.current = false;
 
       setGameState((prev) => {
         const testState: TavlaGameState = {
@@ -145,9 +282,7 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
             testState.statusMessage = `Gelen zarlarla (${d1} - ${d2}) oynanacak geçerli hamle yok! Sıra geçiyor.`;
           }
 
-          turnTransitionTimerRef.current = setTimeout(() => {
-            setGameState((s) => passTurnStrict(s));
-          }, 1800);
+          scheduleTurnPass(1800);
         } else if (testState.bar[testState.currentTurn] > 0) {
           testState.statusMessage = 'Kırık taşınız için tahtadaki yeşil haneye tıklayarak girin!';
         } else {
@@ -157,7 +292,14 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
         return testState;
       });
     }, 850);
-  }, [gameState.turnPhase, gameState.diceState.isRolling, gameState.diceState.remainingMoves.length, gameState.winner, soundEnabled, passTurnStrict]);
+  }, [
+    gameState.turnPhase,
+    gameState.diceState.remainingMoves.length,
+    gameState.diceState.isRolling,
+    gameState.winner,
+    soundEnabled,
+    scheduleTurnPass,
+  ]);
 
   // Handle selecting a point (or the bar)
   const handleSelectPoint = (from: number | 'bar') => {
@@ -187,114 +329,6 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     }));
   };
 
-  // Step-by-Step Animated Move Execution (Paced comfortably so each step is clearly observed)
-  const executeAnimatedMove = useCallback((from: number | 'bar', to: number | 'off', onComplete?: () => void) => {
-    const possibleMoves = getValidMovesForOrigin(gameState, gameState.currentTurn, from);
-    const chosenMove = possibleMoves.find((m) => m.to === to);
-    if (!chosenMove) return;
-
-    // Moving from Bar to Point on Board
-    if (from === 'bar' && typeof to === 'number') {
-      setSteppingPoint(to);
-      if (soundEnabled) tavlaAudio.playCheckerMove();
-      setTimeout(() => {
-        setSteppingPoint(null);
-        finalizeMove(from, to, chosenMove.diceUsed, chosenMove.isHit);
-        if (onComplete) onComplete();
-      }, 300);
-      return;
-    }
-
-    // Moving to Bear-Off Tray
-    if (typeof from === 'number' && to === 'off') {
-      setSteppingPoint(from);
-      if (soundEnabled) tavlaAudio.playCheckerMove();
-      setTimeout(() => {
-        setSteppingPoint(null);
-        finalizeMove(from, to, chosenMove.diceUsed, chosenMove.isHit);
-        if (onComplete) onComplete();
-      }, 300);
-      return;
-    }
-
-    // Standard Point to Point: Animate stepping across intermediate points (220ms per point hop)
-    if (typeof from === 'number' && typeof to === 'number') {
-      const step = from < to ? 1 : -1;
-      let current = from + step;
-      const stepInterval = setInterval(() => {
-        if ((step > 0 && current <= to) || (step < 0 && current >= to)) {
-          setSteppingPoint(current);
-          if (soundEnabled) tavlaAudio.playCheckerMove();
-          current += step;
-        } else {
-          clearInterval(stepInterval);
-          setSteppingPoint(null);
-          finalizeMove(from, to, chosenMove.diceUsed, chosenMove.isHit);
-          if (onComplete) onComplete();
-        }
-      }, 220);
-    } else {
-      finalizeMove(from, to, chosenMove.diceUsed, chosenMove.isHit);
-      if (onComplete) onComplete();
-    }
-  }, [gameState, soundEnabled]);
-
-  const finalizeMove = (from: number | 'bar', to: number | 'off', diceUsed: number, isHit?: boolean) => {
-    const nextState = applyMove(gameState, from, to, diceUsed);
-
-    if (soundEnabled) {
-      if (isHit) {
-        tavlaAudio.playHitSound();
-      } else {
-        tavlaAudio.playCheckerMove();
-      }
-    }
-
-    if (nextState.winner) {
-      if (soundEnabled) tavlaAudio.playVictoryFanfare();
-      setGameState({ ...nextState, turnPhase: 'game_over' });
-      return;
-    }
-
-    // Still has broken checker on bar?
-    if (nextState.bar[nextState.currentTurn] > 0) {
-      const remainingBarMoves = getValidMovesForOrigin(nextState, nextState.currentTurn, 'bar');
-      nextState.selectedPoint = 'bar';
-      nextState.validDestinations = Array.from(new Set(remainingBarMoves.map((m) => m.to)));
-
-      if (remainingBarMoves.length === 0 && nextState.diceState.remainingMoves.length > 0) {
-        nextState.turnPhase = 'turn_ended';
-        nextState.statusMessage = 'Kalan zarla girilebilecek açık kapı yok. Sıra rakibe geçiyor.';
-        setGameState(nextState);
-        turnTransitionTimerRef.current = setTimeout(() => {
-          setGameState((prev) => passTurnStrict(prev));
-        }, 1400);
-        return;
-      }
-    }
-
-    // Turn complete or moves exhausted?
-    if (nextState.diceState.remainingMoves.length === 0) {
-      nextState.turnPhase = 'turn_ended';
-      setGameState(nextState);
-      turnTransitionTimerRef.current = setTimeout(() => {
-        setGameState((prev) => passTurnStrict(prev));
-      }, 500);
-    } else {
-      const remainingLegal = getAllLegalMoves(nextState, nextState.currentTurn);
-      if (remainingLegal.length === 0) {
-        nextState.turnPhase = 'turn_ended';
-        nextState.statusMessage = 'Kalan zarla oynanabilecek hamle kalmadı. Sıra geçiyor.';
-        setGameState(nextState);
-        turnTransitionTimerRef.current = setTimeout(() => {
-          setGameState((prev) => passTurnStrict(prev));
-        }, 1300);
-      } else {
-        setGameState(nextState);
-      }
-    }
-  };
-
   const handleMoveTo = (target: number | 'off') => {
     if (!gameState.selectedPoint) return;
     executeAnimatedMove(gameState.selectedPoint, target);
@@ -307,10 +341,16 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     if (gameState.winner) return;
 
     // AI rolls when in need_roll phase
-    if (gameState.turnPhase === 'need_roll') {
+    if (
+      gameState.turnPhase === 'need_roll' &&
+      !isRollingRef.current &&
+      !gameState.diceState.isRolling &&
+      !isTurnTransitioningRef.current
+    ) {
+      if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
       aiTimerRef.current = setTimeout(() => {
         handleRollDice();
-      }, 700);
+      }, 750);
       return;
     }
 
@@ -318,10 +358,13 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     if (
       gameState.turnPhase === 'moving' &&
       gameState.diceState.remainingMoves.length > 0 &&
-      !gameState.isAiThinking
+      !gameState.isAiThinking &&
+      !isMovingRef.current &&
+      steppingPoint === null
     ) {
       setGameState((prev) => ({ ...prev, isAiThinking: true }));
 
+      if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
       aiTimerRef.current = setTimeout(() => {
         const bestMove = chooseBestAiMove(gameState);
         if (bestMove) {
@@ -329,7 +372,8 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
             setGameState((s) => ({ ...s, isAiThinking: false }));
           });
         } else {
-          setGameState((prev) => passTurnStrict(prev));
+          setGameState((s) => ({ ...s, isAiThinking: false }));
+          scheduleTurnPass(600);
         }
       }, 850);
     }
@@ -339,10 +383,12 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
     gameState.gameMode,
     gameState.winner,
     gameState.diceState.remainingMoves.length,
+    gameState.diceState.isRolling,
     gameState.isAiThinking,
+    steppingPoint,
     handleRollDice,
     executeAnimatedMove,
-    passTurnStrict,
+    scheduleTurnPass,
   ]);
 
   // Compute Visual Hint for Player 1 (White)
@@ -371,11 +417,13 @@ export const TavlaGame: React.FC<TavlaGameProps> = ({ onBackToHub }) => {
   const canCurrentPlayerRoll =
     gameState.turnPhase === 'need_roll' &&
     !gameState.diceState.isRolling &&
+    !isRollingRef.current &&
+    !isTurnTransitioningRef.current &&
     !gameState.winner &&
     (gameState.gameMode === 'vs_player' || gameState.currentTurn === 'white');
 
   return (
-    <div className="min-h-screen py-6 px-3 sm:px-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#2a170b] via-[#1a0c05] to-[#0d0603] text-stone-100 flex flex-col items-center justify-between">
+    <div className="min-h-screen py-6 px-3 sm:px-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#2a170b] via-[#1a0c05] to-[#0d0603] text-stone-100 flex flex-col items-center justify-between overflow-x-hidden select-none">
       {/* Top Header Controls Bar */}
       <div className="w-full max-w-7xl flex flex-wrap items-center justify-between gap-4 mb-3 bg-stone-900/80 border border-amber-950/70 p-4 rounded-2xl shadow-xl backdrop-blur-md">
         <div className="flex items-center gap-3">

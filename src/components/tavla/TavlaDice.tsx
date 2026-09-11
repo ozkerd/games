@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dices } from 'lucide-react';
 import { PlayerColor } from '../../games/tavla/types';
 
@@ -22,28 +22,7 @@ const DICE_PIPS: Record<number, number[]> = {
   6: [0, 2, 3, 5, 6, 8],
 };
 
-// Settle rotation to face the rolled number directly to the camera with organic tilt
-export const getSettleRotation = (value: number, dieIndex: 1 | 2 = 1): string => {
-  const zTilt = dieIndex === 1 ? -6 : 8;
-  switch (value) {
-    case 1:
-      return `rotateX(0deg) rotateY(0deg) rotateZ(${zTilt}deg)`;
-    case 6:
-      return `rotateX(0deg) rotateY(180deg) rotateZ(${zTilt}deg)`;
-    case 2:
-      return `rotateX(-90deg) rotateY(0deg) rotateZ(${zTilt}deg)`;
-    case 5:
-      return `rotateX(90deg) rotateY(0deg) rotateZ(${zTilt}deg)`;
-    case 3:
-      return `rotateX(0deg) rotateY(90deg) rotateZ(${zTilt}deg)`;
-    case 4:
-      return `rotateX(0deg) rotateY(-90deg) rotateZ(${zTilt}deg)`;
-    default:
-      return `rotateX(0deg) rotateY(0deg) rotateZ(${zTilt}deg)`;
-  }
-};
-
-// True 3D Melamine/Bone Die Cube with 6 Faces and 3D Rolling Tumbler
+// Realistic Chamfered Bone / Melamine Die Face with Dynamic Tumbler
 export const RealisticDie: React.FC<{
   value: number;
   isRolling: boolean;
@@ -51,51 +30,75 @@ export const RealisticDie: React.FC<{
   dieIndex?: 1 | 2;
   size?: number;
 }> = ({ value, isRolling, isUsed = false, dieIndex = 1, size = 52 }) => {
-  const half = Math.round(size / 2);
-  const settleRotation = getSettleRotation(value || 1, dieIndex);
+  const [displayValue, setDisplayValue] = useState(value || 1);
 
+  // During rolling, cycle random faces rapidly to simulate realistic physical tumbling
+  useEffect(() => {
+    if (isRolling) {
+      const interval = setInterval(() => {
+        setDisplayValue(Math.floor(Math.random() * 6) + 1);
+      }, 50);
+      return () => clearInterval(interval);
+    } else {
+      setDisplayValue(value || 1);
+    }
+  }, [isRolling, value]);
+
+  const pips = DICE_PIPS[displayValue] || [4];
+
+  // Upward roll from player's hand onto board
   const rollClass = isRolling
     ? dieIndex === 1
-      ? 'animate-3d-roll-1'
-      : 'animate-3d-roll-2'
+      ? 'animate-hand-roll-1'
+      : 'animate-hand-roll-2'
     : '';
 
   const shadowClass = isRolling
     ? dieIndex === 1
-      ? 'animate-3d-shadow-1'
-      : 'animate-3d-shadow-2'
-    : 'filter blur-[4px] scale-100 opacity-80';
+      ? 'animate-hand-shadow-1'
+      : 'animate-hand-shadow-2'
+    : 'scale-100 opacity-80';
 
-  const renderFace = (faceNum: number, transform: string) => {
-    const pips = DICE_PIPS[faceNum] || [];
-    const isAce = faceNum === 1;
-
-    return (
+  return (
+    <div
+      className="relative flex items-center justify-center select-none"
+      style={{
+        width: `${size + 14}px`,
+        height: `${size + 14}px`,
+      }}
+    >
+      {/* Dynamic 3D Cast Shadow */}
       <div
-        className="absolute rounded-xl flex items-center justify-center p-1 select-none pointer-events-none"
+        className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-12 h-3.5 rounded-full bg-black/80 blur-sm pointer-events-none transition-all duration-300 ${shadowClass}`}
+      />
+
+      {/* Realistic Chamfered Bone / Melamine Die Face */}
+      <div
+        className={`relative rounded-2xl flex items-center justify-center transition-all ${rollClass} ${
+          isUsed ? 'opacity-35 grayscale scale-90' : 'hover:scale-105'
+        }`}
         style={{
           width: `${size}px`,
           height: `${size}px`,
-          transform,
-          backfaceVisibility: 'hidden',
-          background: 'linear-gradient(145deg, #ffffff 0%, #faf4eb 45%, #ebdcc9 100%)',
-          boxShadow:
-            'inset 0 1.5px 2px rgba(255,255,255,0.95), inset 0 -1.5px 2px rgba(0,0,0,0.18)',
-          border: '1.5px solid #d4c3ae',
+          background: 'linear-gradient(145deg, #ffffff 0%, #faf5ea 50%, #ebdcc9 100%)',
+          border: '2px solid #c8b7a0',
+          boxShadow: isRolling
+            ? '0 14px 28px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.95), inset 0 -3px 4px rgba(0,0,0,0.25)'
+            : '0 8px 16px rgba(0,0,0,0.55), 0 3px 0 #b39f86, inset 0 2px 4px rgba(255,255,255,0.95), inset 0 -3px 4px rgba(0,0,0,0.2)',
         }}
       >
-        {/* Specular highlight gloss */}
-        <div className="absolute top-0.5 left-1 right-1 h-1/3 rounded-t-lg bg-gradient-to-b from-white/70 via-white/10 to-transparent pointer-events-none" />
+        {/* Specular Gloss Reflection Arc */}
+        <div className="absolute top-0.5 left-1 right-1 h-1/3 rounded-t-xl bg-gradient-to-b from-white/70 via-white/20 to-transparent pointer-events-none" />
 
         {/* 3x3 Grid for Pips */}
-        <div className="w-full h-full grid grid-cols-3 grid-rows-3 p-1">
+        <div className="w-full h-full grid grid-cols-3 grid-rows-3 p-1.5 pointer-events-none">
           {Array.from({ length: 9 }).map((_, idx) => (
             <div key={idx} className="flex items-center justify-center">
               {pips.includes(idx) && (
                 <div
-                  className={`rounded-full ${
-                    isAce
-                      ? 'w-3.5 h-3.5 bg-gradient-to-br from-red-500 via-red-600 to-red-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.85)] ring-1 ring-red-900/60'
+                  className={`rounded-full transition-all duration-75 ${
+                    displayValue === 1
+                      ? 'w-3.5 h-3.5 bg-gradient-to-br from-red-500 via-red-600 to-red-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.9)] ring-1 ring-red-900/60'
                       : 'w-2.5 h-2.5 bg-gradient-to-br from-[#2a1c12] to-[#0a0502] shadow-[inset_0_1px_2px_rgba(0,0,0,0.95)] ring-1 ring-black/40'
                   }`}
                 />
@@ -103,44 +106,6 @@ export const RealisticDie: React.FC<{
             </div>
           ))}
         </div>
-      </div>
-    );
-  };
-
-  return (
-    <div
-      className="dice-perspective-container relative flex items-center justify-center select-none"
-      style={{
-        width: `${size + 16}px`,
-        height: `${size + 16}px`,
-      }}
-    >
-      {/* 3D Cast Shadow */}
-      <div
-        className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-12 h-3.5 rounded-full bg-black/85 transition-all duration-300 pointer-events-none ${shadowClass}`}
-      />
-
-      {/* 3D Rolling Cube */}
-      <div
-        className={`dice-cube ${rollClass} ${
-          isUsed ? 'opacity-30 grayscale scale-90' : 'hover:scale-105'
-        }`}
-        style={
-          {
-            width: `${size}px`,
-            height: `${size}px`,
-            '--settle-rotation': settleRotation,
-            transform: isRolling ? undefined : settleRotation,
-          } as React.CSSProperties
-        }
-      >
-        {/* 6 Opposing Faces (Opposite faces sum to 7: 1-6, 2-5, 3-4) */}
-        {renderFace(1, `rotateY(0deg) translateZ(${half}px)`)}
-        {renderFace(6, `rotateY(180deg) translateZ(${half}px)`)}
-        {renderFace(2, `rotateX(90deg) translateZ(${half}px)`)}
-        {renderFace(5, `rotateX(-90deg) translateZ(${half}px)`)}
-        {renderFace(3, `rotateY(-90deg) translateZ(${half}px)`)}
-        {renderFace(4, `rotateY(90deg) translateZ(${half}px)`)}
       </div>
     </div>
   );
